@@ -1,7 +1,8 @@
 // Hero 3D scene: contemporary Aseer villa at golden hour (wayfinder landing-hero, direction E).
 // Loaded lazily by index.html only on desktops >= 1024px without reduced motion / data saver.
 // ?still renders one settled frame at az=0.6 (no orbit, no parallax) for the static fallback render;
-// ?still&az=<rad> pins another angle, ?q=<0-5> starts lower on the quality ladder (testing).
+// ?still&az=<rad> pins another angle, ?still&fo=<n>&r=<n> override film offset / camera distance (portrait render);
+// ?q=<0-5> starts lower on the quality ladder (testing).
 import * as THREE from './vendor/three-r170/three.module.min.js';
 
 const P = new URLSearchParams(location.search);
@@ -391,8 +392,8 @@ export async function start(stage) {
     camera.aspect = w / h;
     // Push the villa left, clear of the RTL copy. At 1024-1200 the copy takes ~55% of the width, so the
     // camera also backs off (spec's 9.8 offset alone overlapped the copy by up to 126px at max orbit).
-    camera.filmOffset = w > 1200 ? 12.6 : 12;
-    R = w > 1200 ? 50 : 64;
+    camera.filmOffset = still && P.has('fo') ? +P.get('fo') : w > 1200 ? 12.6 : 12;
+    R = still && P.has('r') ? +P.get('r') : w > 1200 ? 50 : 64;
     camera.updateProjectionMatrix();
     if (frozen) renderer.render(scene, camera); // setSize clears the canvas
   };

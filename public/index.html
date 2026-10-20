@@ -25,6 +25,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;600&family=Barlow+Condensed:wght@500;600&family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap">
+<!-- Static hero = LCP below 1024px (and on desktop until the 3D fades in). Regenerate with scripts/render-hero-fallback.sh -->
+<link rel="preload" as="image" imagesrcset="/assets/hero/hero-portrait-390.73237ca9.webp 390w, /assets/hero/hero-portrait-780.8daca5cd.webp 780w" imagesizes="100vw" media="(max-width: 767px)" fetchpriority="high">
+<link rel="preload" as="image" imagesrcset="/assets/hero/hero-landscape-1280.1c8ac88d.webp 1280w, /assets/hero/hero-landscape-2048.4528ab92.webp 2048w" imagesizes="100vw" media="(min-width: 768px)" fetchpriority="high">
 
 <script type="application/ld+json">
 {
@@ -106,12 +109,14 @@ p.en { direction: rtl; }
 .hero-stage { position: absolute; inset: 0; }
 .hero-stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; transition: opacity 1.2s ease; }
 .hero-stage.is-3d canvas { opacity: 1; }
-.hero-art { position: absolute; inset-block-end: 0; inset-inline-end: 0; width: 100%; height: 100%; transition: opacity .8s; }
+.hero-art { position: absolute; inset: 0; transition: opacity .8s; }
 .hero-stage.is-3d .hero-art { opacity: 0; }
-.hero-art svg { width: 100%; height: 100%; }
-.hero-scrim { position: absolute; inset: 0; background: rgba(28,29,33,.55); }
-@media (min-width: 768px) { .hero-scrim { display: none; } }
-@media (min-width: 1024px) { .hero-scrim { display: block; background: linear-gradient(to left, rgba(28,29,33,.78) 0%, rgba(28,29,33,.45) 38%, rgba(28,29,33,0) 62%); } }
+.hero-art img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 40%; }
+@media (min-width: 768px) { .hero-art img { object-position: left center; } }
+/* Scrims tuned so every hero text line stays >= 4.5:1 over the brightest pixel of the static image */
+.hero-scrim { position: absolute; inset: 0; background: linear-gradient(to top, rgba(28,29,33,.88) 0%, rgba(28,29,33,.82) 50%, rgba(28,29,33,.74) 100%); }
+@media (min-width: 768px) { .hero-scrim { background: linear-gradient(to left, rgba(28,29,33,.88) 0%, rgba(28,29,33,.82) 75%, rgba(28,29,33,.4) 100%); } }
+@media (min-width: 1024px) { .hero-scrim { background: linear-gradient(to left, rgba(28,29,33,.78) 0%, rgba(28,29,33,.45) 38%, rgba(28,29,33,0) 62%); } }
 .hero .wrap { position: relative; width: 100%; pointer-events: none; }
 .hero-copy { max-width: 560px; pointer-events: auto; }
 .eyebrow { display: inline-flex; align-items: center; gap: 10px; color: #d8b67a; font: 500 15px/20px var(--f-body); margin: 0 0 20px; }
@@ -253,21 +258,11 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
   <section class="hero night" aria-labelledby="hero-title">
     <div class="hero-stage" id="stage">
       <div class="hero-art" aria-hidden="true">
-        <!-- Static hero (mobile, reduced motion, no WebGL): Aseer ridgelines, villa outline, sand wave -->
-        <svg viewBox="0 0 1200 800" preserveAspectRatio="xMinYMax slice">
-          <path d="M0 520 L140 400 L230 460 L360 330 L470 430 L560 380 L700 470 L1200 470 L1200 800 L0 800Z" fill="#26272c"/>
-          <path d="M0 590 L120 520 L260 570 L380 490 L520 560 L640 520 L1200 560 L1200 800 L0 800Z" fill="#2c2a27"/>
-          <g fill="none" stroke="#c8a46b" stroke-width="1.5">
-            <path d="M120 600h300v-120h-200v-70h220v190" stroke="#8a857d"/>
-            <path d="M150 600v-90h80v90M300 600v-60h40v60M240 470h50M330 470h60M240 440h150" />
-            <path d="M80 600h420" stroke="#8a857d"/>
-          </g>
-          <g fill="none" stroke="#c8a46b" stroke-linecap="round" opacity=".9">
-            <path d="M0 690 C 180 640, 330 700, 520 660 S 820 610, 1200 660" stroke-width="2"/>
-            <path d="M0 724 C 200 680, 360 736, 560 700 S 860 650, 1200 700" stroke-width="1.5" opacity=".6"/>
-            <path d="M0 758 C 220 720, 400 770, 600 740 S 900 690, 1200 740" stroke-width="1" opacity=".35"/>
-          </g>
-        </svg>
+        <!-- Static hero (below 1024px, reduced motion, data saver, no WebGL): render of the 3D scene -->
+        <picture>
+          <source media="(max-width: 767px)" srcset="/assets/hero/hero-portrait-390.73237ca9.webp 390w, /assets/hero/hero-portrait-780.8daca5cd.webp 780w" sizes="100vw" width="780" height="1688">
+          <img src="/assets/hero/hero-landscape-1280.1c8ac88d.webp" srcset="/assets/hero/hero-landscape-1280.1c8ac88d.webp 1280w, /assets/hero/hero-landscape-2048.4528ab92.webp 2048w" sizes="100vw" width="2048" height="1178" alt="" fetchpriority="high" decoding="async">
+        </picture>
       </div>
       <div class="hero-scrim"></div>
     </div>
