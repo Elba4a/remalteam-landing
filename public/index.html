@@ -111,6 +111,7 @@ p.en { direction: rtl; }
 .hero-art svg { width: 100%; height: 100%; }
 .hero-scrim { position: absolute; inset: 0; background: rgba(28,29,33,.55); }
 @media (min-width: 768px) { .hero-scrim { display: none; } }
+@media (min-width: 1024px) { .hero-scrim { display: block; background: linear-gradient(to left, rgba(28,29,33,.78) 0%, rgba(28,29,33,.45) 38%, rgba(28,29,33,0) 62%); } }
 .hero .wrap { position: relative; width: 100%; pointer-events: none; }
 .hero-copy { max-width: 560px; pointer-events: auto; }
 .eyebrow { display: inline-flex; align-items: center; gap: 10px; color: #d8b67a; font: 500 15px/20px var(--f-body); margin: 0 0 20px; }
@@ -440,7 +441,7 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
 (function () {
   var mq = matchMedia('(prefers-reduced-motion: reduce)');
   var conn = navigator.connection || {};
-  if (mq.matches || conn.saveData || innerWidth < 768 || (navigator.hardwareConcurrency || 4) < 4) return;
+  if (mq.matches || conn.saveData || innerWidth < 1024 || (navigator.hardwareConcurrency || 4) < 4) return;
   try { var c = document.createElement('canvas'); if (!(c.getContext('webgl2') || c.getContext('webgl'))) return; } catch (e) { return; }
   var go = function () { import('/assets/scene.js').then(function (m) { m.start(document.getElementById('stage')); }).catch(function () {}); };
   var idle = window.requestIdleCallback || function (f) { setTimeout(f, 200); };
