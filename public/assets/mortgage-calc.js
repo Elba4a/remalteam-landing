@@ -4,7 +4,11 @@
   const wa = document.getElementById('calc-wa');
   const waBase = document.querySelector('.site-head .btn').href.split('?')[0]; // office number comes from the built header
   const fmt = (n) => Math.round(n).toLocaleString('en-US');
-  const num = (name) => Math.max(0, parseFloat(form.elements[name].value) || 0);
+  // Clamped to the input's own min/max (the form is novalidate, so the browser won't).
+  const num = (name) => {
+    const el = form.elements[name], v = parseFloat(el.value);
+    return v > 0 ? Math.min(+el.max || Infinity, Math.max(+el.min || 0, v)) : 0; // empty/negative stays 0 → "—"
+  };
 
   const update = () => {
     const salary = num('salary'), debts = num('debts'), share = num('share'), years = num('years'), rate = num('rate');
