@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Builds the city/service pages from content/pages/*.json into public/<slug>/index.html,
 // and refreshes everything else that carries office data: the build:* blocks in
-// public/index.html, sitemap.xml and llms.txt. Office data lives only in content/site.json.
+// public/index.html, 404.html, sitemap.xml and llms.txt. Office data lives only in content/site.json.
 // Usage: node scripts/build-pages.mjs   (no dependencies)
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -187,9 +187,16 @@ let home = readFileSync(join(pub, 'index.html'), 'utf8');
 for (const [name, html] of Object.entries(blocks)) {
   const re = new RegExp(`(<!-- build:${name} -->)[\\s\\S]*?(<!-- /build:${name} -->)`);
   if (!re.test(home)) throw new Error(`public/index.html: missing <!-- build:${name} --> block`);
-  home = home.replace(re, `$1${html ? `\n${html}\n` : ''}$2`);
+  // Replacer function, so '$' in content is never read as a replacement pattern.
+  home = home.replace(re, (_, open, close) => open + (html ? `\n${html}\n` : '') + close);
 }
 writeFileSync(join(pub, 'index.html'), home);
+
+// 404: self-contained (inline styles), but the office line comes from site.json like every other page.
+writeFileSync(join(pub, '404.html'), `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>الصفحة غير موجودة | الرمال تيم العقارية</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#1C1D21;color:#F7F4EF;font:16px/28px 'IBM Plex Sans Arabic',Tahoma,sans-serif;text-align:center;padding:16px">
+<div><img src="/assets/mark-gold.svg" alt="" width="72" style="margin:0 auto 16px"><h1 style="font-size:28px;margin:0 0 8px">الصفحة غير موجودة</h1><p style="color:#B9B2A6;margin:0 0 24px">Page not found</p><a href="/" style="color:#C8A46B">العودة للرئيسية</a><p style="color:#B9B2A6;font-size:13px;margin-top:32px">السجل التجاري ${site.commercial_registration} · رخصة فال ${site.fal_license} · واتساب <a href="${site.whatsapp.url}" style="color:#B9B2A6" dir="ltr">${site.whatsapp.number}</a></p></div></body></html>
+`);
 
 writeFileSync(join(pub, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -214,4 +221,4 @@ writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})
 - [الرئيسية](${url()}): ${site.summary}
 ${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}`);
 
-console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), index.html blocks, sitemap.xml (${live.length + 1} urls), llms.txt`);
+console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), index.html blocks, 404.html, sitemap.xml (${live.length + 1} urls), llms.txt`);
