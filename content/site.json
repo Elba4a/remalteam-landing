@@ -1,0 +1,16 @@
+{
+  "origin": "https://remalteam.com",
+  "name": { "ar": "مكتب الرمال تيم العقارية", "en": "Al-Remal Team Real Estate" },
+  "commercial_registration": "7053922824",
+  "fal_license": "1200048445",
+  "whatsapp": { "number": "+966535330034", "url": "https://wa.me/966535330034" },
+  "email": "info@remalteam.com",
+  "location_url": "https://www.google.com/maps?cid=6580762802695110816",
+  "google_business_profile_url": "https://share.google/unhDKuhvJ6BEsEQKQ",
+  "snapchat": { "handle": "@remalteam", "url": "https://www.snapchat.com/@remalteam" },
+  "address": { "street": "شارع ذو الحليفة، حي المحالة", "locality": "أبها", "postal_code": "62564", "region": "منطقة عسير", "country": "SA" },
+  "geo": { "latitude": 18.2820398, "longitude": 42.5961416 },
+  "area_served": ["أبها", "خميس مشيط", "منطقة عسير"],
+  "summary": "مكتب عقاري مسجّل في منطقة عسير (بين أبها وخميس مشيط): بيع وشراء وإيجار وتسويق العقارات، واستشارات التمويل العقاري المدعوم وغير المدعوم مع البنوك السعودية.",
+  "home_updated": "2026-10-21"
+}
