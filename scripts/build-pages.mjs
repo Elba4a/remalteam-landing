@@ -21,6 +21,7 @@ if (existsSync(brandPath)) {
     [c.commercial_registration, site.commercial_registration], [c.fal_license, site.fal_license],
     [c.whatsapp.number, site.whatsapp.number], [c.whatsapp.url, site.whatsapp.url], [c.email, site.email],
     [c.location_url, site.location_url], [c.google_business_profile_url, site.google_business_profile_url],
+    [c.snapchat?.url, site.snapchat.url], [c.tiktok?.url, site.tiktok.url],
   ];
   for (const [want, got] of pairs) if (want !== undefined && want !== got) throw new Error(`content/site.json "${got}" != company.json "${want}"`);
 }
@@ -55,7 +56,7 @@ const office = {
   openingHoursSpecification: site.opening_hours.map((h) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: h.days, opens: h.opens, closes: h.closes })),
   areaServed: site.area_served,
   hasMap: site.location_url,
-  sameAs: [site.google_business_profile_url, site.snapchat.url],
+  sameAs: [site.google_business_profile_url, site.snapchat.url, site.tiktok.url],
   identifier: [
     { '@type': 'PropertyValue', name: 'السجل التجاري', value: site.commercial_registration },
     { '@type': 'PropertyValue', name: 'رخصة فال', value: site.fal_license },
@@ -75,6 +76,7 @@ const legal = `<div class="legal">
           <span>واتساب: <a class="ltr" href="${site.whatsapp.url}">${site.whatsapp.number}</a></span>
           <span>البريد: <a class="ltr" href="mailto:${site.email}">${site.email}</a></span>
           <span>سناب شات: <a class="ltr" href="${site.snapchat.url}">${site.snapchat.handle}</a></span>
+          <span>تيك توك: <a class="ltr" href="${site.tiktok.url}">${site.tiktok.handle}</a></span>
           <span>© <span class="ltr">${new Date().getFullYear()}</span> ${site.name.ar}</span>
         </div>`;
 
@@ -216,6 +218,7 @@ writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})
 - العنوان: ${site.address.street}، ${site.address.locality} ${site.address.postal_code}، ${site.address.region}
 - الخريطة: ${site.location_url}
 - سناب شات: ${site.snapchat.url}
+- تيك توك: ${site.tiktok.url}
 
 ## الصفحات
 
