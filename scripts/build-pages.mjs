@@ -52,6 +52,7 @@ const office = {
   email: site.email,
   address: { '@type': 'PostalAddress', streetAddress: site.address.street, addressLocality: site.address.locality, postalCode: site.address.postal_code, addressRegion: site.address.region, addressCountry: site.address.country },
   geo: { '@type': 'GeoCoordinates', latitude: site.geo.latitude, longitude: site.geo.longitude },
+  openingHoursSpecification: site.opening_hours.map((h) => ({ '@type': 'OpeningHoursSpecification', dayOfWeek: h.days, opens: h.opens, closes: h.closes })),
   areaServed: site.area_served,
   hasMap: site.location_url,
   sameAs: [site.google_business_profile_url, site.snapchat.url],
