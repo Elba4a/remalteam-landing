@@ -11,12 +11,12 @@
   "h1": "حاسبة التمويل العقاري",
   "en": "Mortgage calculator",
   "lead": "احسب تقديراً سريعاً للقسط الشهري ومبلغ التمويل العقاري. النتيجة تقديرية، والموافقة النهائية يحددها البنك.",
-  "wa_text": "السلام عليكم، أبغى حساب تمويل عقاري دقيق",
+  "wa_text": "السلام عليكم، أبغى حسبة تمويل ومقارنة البنوك.\nالراتب الصافي: \nجهة العمل: \nالالتزامات الشهرية: ",
   "sections": [
     {
       "h2": "احسب تمويلك",
       "en": "Estimate your finance",
-      "html": "<form class=\"calc\" id=\"calc\" novalidate><div class=\"calc-fields\"><label>صافي الراتب الشهري (ريال)<input name=\"salary\" type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"100\" value=\"12000\" required></label><label>الالتزامات الشهرية الحالية (ريال)<input name=\"debts\" type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"100\" value=\"0\"></label><label>نسبة القسط من الراتب (٪)<input name=\"share\" type=\"number\" inputmode=\"decimal\" min=\"1\" max=\"100\" step=\"1\" value=\"33\" required><small>كم من راتبك تريد أن يذهب للأقساط كلها. الحد الفعلي يحدده البنك.</small></label><label>مدة التمويل (سنة)<input name=\"years\" type=\"number\" inputmode=\"numeric\" min=\"1\" max=\"30\" step=\"1\" value=\"25\" required></label><label>نسبة الربح السنوية التقريبية (٪)<input name=\"rate\" type=\"number\" inputmode=\"decimal\" min=\"0\" max=\"30\" step=\"0.1\" value=\"5\" required><small>ضع النسبة التي عرضها عليك البنك إن وُجدت.</small></label></div><div class=\"calc-out\" aria-live=\"polite\"><p>القسط الشهري التقريبي</p><output name=\"payment\" class=\"ltr\">—</output><p>مبلغ التمويل التقريبي</p><output name=\"amount\" class=\"ltr\">—</output><p class=\"calc-note\">النتيجة تقديرية بمعادلة القسط الثابت، ولا تشمل الرسوم أو التأمين أو الدعم السكني. <strong>الموافقة النهائية والمبلغ يحددهما البنك.</strong></p><a class=\"btn btn-gold\" id=\"calc-wa\" href=\"#contact\">أرسل النتيجة واطلب حساباً دقيقاً</a></div></form><script src=\"/assets/mortgage-calc.js\" defer></script>"
+      "html": "<form class=\"calc\" id=\"calc\" novalidate><div class=\"calc-fields\"><label>صافي الراتب الشهري (ريال)<input name=\"salary\" type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"100\" value=\"12000\" required></label><label>الالتزامات الشهرية الحالية (ريال)<input name=\"debts\" type=\"number\" inputmode=\"numeric\" min=\"0\" step=\"100\" value=\"0\"></label><label>نسبة القسط من الراتب (٪)<input name=\"share\" type=\"number\" inputmode=\"decimal\" min=\"1\" max=\"100\" step=\"1\" value=\"33\" required><small>كم من راتبك تريد أن يذهب للأقساط كلها. الحد الفعلي يحدده البنك.</small></label><label>مدة التمويل (سنة)<input name=\"years\" type=\"number\" inputmode=\"numeric\" min=\"1\" max=\"30\" step=\"1\" value=\"25\" required></label><label>نسبة الربح السنوية التقريبية (٪)<input name=\"rate\" type=\"number\" inputmode=\"decimal\" min=\"0\" max=\"30\" step=\"0.1\" value=\"5\" required><small>ضع النسبة التي عرضها عليك البنك إن وُجدت.</small></label></div><div class=\"calc-out\" aria-live=\"polite\"><p>القسط الشهري التقريبي</p><output name=\"payment\" class=\"ltr\">—</output><p>مبلغ التمويل التقريبي</p><output name=\"amount\" class=\"ltr\">—</output><p class=\"calc-note\">النتيجة تقديرية بمعادلة القسط الثابت، ولا تشمل الرسوم أو التأمين أو الدعم السكني. <strong>الموافقة النهائية والمبلغ يحددهما البنك.</strong></p><p class=\"calc-note\">أرسل النتيجة على واتساب، ونرسل لك خلال دقائق أفضل حسبة لحالتك مع مقارنة البنوك، مجاناً.</p><a class=\"btn btn-gold\" id=\"calc-wa\" href=\"#contact\">أرسل النتيجة واطلب أفضل حسبة</a></div></form><script src=\"/assets/mortgage-calc.js\" defer></script>"
     },
     {
       "h2": "كيف تعمل الحاسبة",
@@ -25,8 +25,17 @@
     }
   ],
   "faq": [
-    { "q": "هل نتيجة الحاسبة نهائية؟", "a": "لا. النتيجة تقديرية، والموافقة النهائية ومبلغ التمويل يحددهما البنك بعد دراسة طلبك." },
-    { "q": "لماذا تختلف النتيجة عن عرض البنك؟", "a": "لأن البنك يطبّق نسبه وشروطه الخاصة، ويحسب العمر وجهة العمل والسجل الائتماني والرسوم والدعم السكني إن وُجد. الحاسبة تعطيك تصوراً أولياً فقط." },
-    { "q": "هل تحفظون البيانات التي أدخلها في الحاسبة؟", "a": "لا. الحساب يتم في متصفحك فقط ولا يُرسل إلينا شيء، إلا إذا ضغطت زر واتساب وأرسلت الرسالة بنفسك." }
+    {
+      "q": "هل نتيجة الحاسبة نهائية؟",
+      "a": "لا. النتيجة تقديرية، والموافقة النهائية ومبلغ التمويل يحددهما البنك بعد دراسة طلبك."
+    },
+    {
+      "q": "لماذا تختلف النتيجة عن عرض البنك؟",
+      "a": "لأن البنك يطبّق نسبه وشروطه الخاصة، ويحسب العمر وجهة العمل والسجل الائتماني والرسوم والدعم السكني إن وُجد. الحاسبة تعطيك تصوراً أولياً فقط."
+    },
+    {
+      "q": "هل تحفظون البيانات التي أدخلها في الحاسبة؟",
+      "a": "لا. الحساب يتم في متصفحك فقط ولا يُرسل إلينا شيء، إلا إذا ضغطت زر واتساب وأرسلت الرسالة بنفسك."
+    }
   ]
 }

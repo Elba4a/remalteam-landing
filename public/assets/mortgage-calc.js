@@ -19,7 +19,7 @@
     form.elements.payment.value = payment > 0 ? `${fmt(payment)} ريال` : debts > 0 ? 'الالتزامات تتجاوز النسبة' : '—';
     form.elements.amount.value = amount > 0 ? `${fmt(amount)} ريال` : '—';
     wa.href = `${waBase}?text=` + encodeURIComponent(
-      `السلام عليكم، استخدمت حاسبة التمويل في موقعكم:\nالراتب: ${fmt(salary)}\nالالتزامات: ${fmt(debts)}\nالمدة: ${years} سنة\nالنسبة: ${rate}٪\nالقسط التقريبي: ${payment > 0 ? fmt(payment) : 0}\nالتمويل التقريبي: ${fmt(amount)}\nأبغى حساباً دقيقاً.`);
+      `السلام عليكم، استخدمت حاسبة التمويل في موقعكم:\nالراتب: ${fmt(salary)}\nجهة العمل: \nالالتزامات: ${fmt(debts)}\nالمدة: ${years} سنة\nالنسبة: ${rate}٪\nالقسط التقريبي: ${payment > 0 ? fmt(payment) : 0}\nالتمويل التقريبي: ${fmt(amount)}\nأبغى أفضل حسبة مع مقارنة البنوك.`);
   };
   form.addEventListener('input', update);
   form.addEventListener('submit', (e) => e.preventDefault());
