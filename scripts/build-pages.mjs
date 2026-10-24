@@ -82,6 +82,13 @@ const legal = `<div class="legal">
 
 const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>';
 
+// Optional section.htmlFile reads a fragment from content/ so a long form stays out of the JSON string.
+const sectionBody = (s) => {
+  if (!s.htmlFile) return s.html || '';
+  if (s.htmlFile.includes('..') || !/^content\/[a-z0-9./-]+$/.test(s.htmlFile)) throw new Error(`bad htmlFile "${s.htmlFile}"`);
+  return read(s.htmlFile).trim();
+};
+
 const page = (p) => {
   const faq = p.faq?.length ? p.faq : null;
   const graph = [
@@ -141,7 +148,7 @@ ${schema(graph)}
 ${(p.sections || []).map((s, i) => `  <section class="${i % 2 ? 'sand' : ''}">
     <div class="wrap prose">
       <div class="sec-head"><h2>${esc(s.h2)}</h2>${s.en ? `<p class="en">${esc(s.en)}</p>` : ''}</div>
-      ${s.html}
+      ${sectionBody(s)}
     </div>
   </section>`).join('\n')}
 ${faq ? `  <section class="faq" aria-labelledby="faq-title">
