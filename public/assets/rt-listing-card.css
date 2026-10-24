@@ -1,0 +1,168 @@
+/* Listing card — DS v2 tokens and the only card stylesheet.
+   Swap this file with scripts/rt-listing-card.mjs. Do not restyle .rt-listing-card elsewhere.
+   Breakpoint custom properties cannot drive @media, so the queries below repeat --rt-bp-md (700px) and --rt-bp-lg (1024px). */
+
+:root {
+  --rt-color-canvas: #f7f4ef;
+  --rt-color-surface: #ffffff;
+  --rt-color-sand: #ede7dd;
+  --rt-color-ink: #1c1d21;
+  --rt-color-ink-muted: #5f5952;
+  --rt-color-line: #ddd5c8;
+  --rt-color-line-strong: #8a857d;
+  --rt-color-gold: #c8a46b;
+  --rt-color-gold-hover: #b8935a;
+  --rt-color-on-gold: #1c1d21;
+  --rt-color-gold-text: #7a5b28;
+  --rt-color-gold-soft: #f1e6d2;
+  --rt-color-stone: #8a857d;
+  --rt-font-display: "Barlow Condensed", "Alexandria", "Arial Narrow", sans-serif;
+  --rt-font-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --rt-font-fig: "Barlow Semi Condensed", "IBM Plex Sans Arabic", sans-serif;
+  --rt-radius-card: 4px;
+  --rt-radius-control: 2px;
+  --rt-space-2: 8px;
+  --rt-space-3: 12px;
+  --rt-space-4: 16px;
+  --rt-space-5: 20px;
+  --rt-space-6: 24px;
+  --rt-shadow-1: 0 1px 2px rgba(28, 29, 33, .06), 0 2px 8px rgba(28, 29, 33, .05);
+  --rt-shadow-2: 0 8px 24px rgba(73, 68, 63, .14);
+  --rt-media-ratio: 4 / 3;
+  --rt-qr-size: 72px;
+  --rt-bp-md: 700px;
+  --rt-bp-lg: 1024px;
+}
+
+.rt-listing-grid {
+  display: grid;
+  gap: var(--rt-space-4);
+  grid-template-columns: 1fr;
+}
+@media (min-width: 700px) {
+  .rt-listing-grid { grid-template-columns: 1fr 1fr; gap: var(--rt-space-6); }
+}
+@media (min-width: 1024px) {
+  .rt-listing-grid { grid-template-columns: 1fr 1fr 1fr; }
+}
+
+.rt-listing-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--rt-color-surface);
+  border: 1px solid var(--rt-color-line);
+  border-radius: var(--rt-radius-card);
+  box-shadow: var(--rt-shadow-1);
+  overflow: hidden;
+  color: var(--rt-color-ink);
+  font-family: var(--rt-font-body);
+}
+.rt-listing-card--placeholder,
+.rt-listing-card--draft { outline: 2px solid var(--rt-color-gold); outline-offset: -2px; }
+
+.rt-listing-card__media {
+  display: block;
+  aspect-ratio: var(--rt-media-ratio);
+  background: var(--rt-color-sand);
+  overflow: hidden;
+}
+.rt-listing-card__media img { width: 100%; height: 100%; object-fit: cover; }
+
+.rt-listing-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rt-space-3);
+  padding: var(--rt-space-4);
+  flex: 1;
+}
+@media (min-width: 700px) {
+  .rt-listing-card__body { padding: var(--rt-space-5); gap: 14px; }
+}
+
+.rt-listing-card__kicker { display: flex; align-items: center; justify-content: space-between; gap: var(--rt-space-2); }
+.rt-listing-card__code { margin: 0; color: var(--rt-color-gold-text); font: 600 15px/20px var(--rt-font-fig); letter-spacing: .04em; }
+.rt-listing-card__status {
+  margin: 0;
+  padding: 2px var(--rt-space-2);
+  border-radius: var(--rt-radius-control);
+  background: var(--rt-color-gold-soft);
+  color: var(--rt-color-gold-text);
+  font: 600 13px/20px var(--rt-font-body);
+}
+.rt-listing-card--reserved .rt-listing-card__status { background: var(--rt-color-sand); color: var(--rt-color-ink-muted); }
+.rt-listing-card--sold .rt-listing-card__status,
+.rt-listing-card--rented .rt-listing-card__status { background: var(--rt-color-ink); color: var(--rt-color-canvas); }
+
+.rt-listing-card__title { margin: 0; font: 600 22px/30px var(--rt-font-display); }
+.rt-listing-card__title a { color: var(--rt-color-ink); text-decoration: none; }
+.rt-listing-card__title a:hover { color: var(--rt-color-gold-text); }
+
+.rt-listing-card__specs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--rt-space-2) var(--rt-space-3); margin: 0; }
+.rt-listing-card__specs div { min-width: 0; }
+.rt-listing-card__specs dt { margin: 0; color: var(--rt-color-stone); font-size: 12px; line-height: 18px; }
+.rt-listing-card__specs dd { margin: 0; color: var(--rt-color-ink); font-size: 15px; line-height: 22px; }
+
+.rt-listing-card__price { margin: 0; color: var(--rt-color-ink); font: 600 22px/30px var(--rt-font-fig); }
+
+.rt-listing-card__license {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rt-space-3);
+  margin: 0;
+  padding-top: var(--rt-space-2);
+  border-top: 1px solid var(--rt-color-line);
+}
+.rt-listing-card__license--missing { display: block; color: var(--rt-color-gold-text); font-weight: 600; font-size: 14px; }
+.rt-listing-card__license-label { margin: 0; color: var(--rt-color-stone); font-size: 12px; line-height: 18px; }
+.rt-listing-card__license-number { margin: 0; color: var(--rt-color-ink); font: 600 16px/22px var(--rt-font-fig); }
+.rt-listing-card__qr {
+  width: var(--rt-qr-size);
+  height: var(--rt-qr-size);
+  object-fit: contain;
+  background: var(--rt-color-surface);
+  border: 1px solid var(--rt-color-line);
+  border-radius: var(--rt-radius-control);
+  flex: none;
+}
+
+.rt-listing-card__actions { display: flex; flex-wrap: wrap; gap: var(--rt-space-2); margin-top: auto; }
+.rt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rt-space-2);
+  flex: 1 1 8rem;
+  min-height: 48px;
+  padding: 12px var(--rt-space-4);
+  border-radius: var(--rt-radius-control);
+  border: 1px solid transparent;
+  font: 600 15px/20px var(--rt-font-body);
+  text-decoration: none;
+}
+.rt-btn svg { width: 20px; height: 20px; flex: none; }
+.rt-btn--whatsapp { background: var(--rt-color-gold); color: var(--rt-color-on-gold); }
+.rt-btn--whatsapp:hover { background: var(--rt-color-gold-hover); }
+.rt-btn--ghost { color: var(--rt-color-ink); border-color: var(--rt-color-line-strong); background: transparent; }
+.rt-btn--ghost:hover { border-color: var(--rt-color-ink); }
+.rt-btn--disabled {
+  opacity: .45;
+  pointer-events: none;
+  cursor: not-allowed;
+  background: var(--rt-color-sand);
+  color: var(--rt-color-ink-muted);
+}
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .rt-listing-card { transition: box-shadow .25s, transform .25s, border-color .25s; }
+  .rt-listing-card:hover {
+    box-shadow: var(--rt-shadow-2);
+    transform: translateY(-3px);
+    border-color: var(--rt-color-gold);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rt-listing-card,
+  .rt-listing-card:hover { transition: none; transform: none; }
+}

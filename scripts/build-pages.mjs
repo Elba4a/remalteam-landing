@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readUnitsDocument, buildUnitPages, publishedUnits } from './units-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pub = join(root, 'public');
@@ -36,6 +37,11 @@ const pages = readdirSync(join(root, 'content/pages')).filter((f) => f.endsWith(
 });
 // Drafts are built for local preview only: noindex, and left out of links, sitemap and llms.txt.
 const live = pages.filter((p) => !p.draft);
+if (pages.some((p) => p.slug === 'units')) throw new Error('slug "units" is reserved for the listings index');
+const unitsDoc = readUnitsDocument(root, pub);
+for (const warning of unitsDoc.warnings) console.warn(`units: ${warning}`);
+const unitsLive = publishedUnits(unitsDoc.units);
+const previewDrafts = process.argv.includes('--preview-drafts');
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 const url = (p) => `${site.origin}/${p ? p.slug + '/' : ''}`;
@@ -65,10 +71,14 @@ const office = {
 const schema = (graph) => `<script type="application/ld+json">\n${json({ '@context': 'https://schema.org', '@graph': graph })}\n</script>`;
 
 // Links to the live city/service pages, grouped; empty string while there are none.
-const pageLinks = (cls) => Object.entries(GROUPS).map(([g, title]) => {
-  const ps = live.filter((p) => p.group === g);
-  return ps.length ? `<div><h3>${title}</h3><ul>${ps.map((p) => `<li><a href="/${p.slug}/">${esc(p.label)}</a></li>`).join('')}</ul></div>` : '';
-}).join('').replace(/^(.+)$/s, `<nav class="${cls}" aria-label="صفحات الموقع">$1</nav>`);
+const pageLinks = (cls) => {
+  const groups = Object.entries(GROUPS).map(([g, title]) => {
+    const ps = live.filter((p) => p.group === g);
+    return ps.length ? `<div><h3>${title}</h3><ul>${ps.map((p) => `<li><a href="/${p.slug}/">${esc(p.label)}</a></li>`).join('')}</ul></div>` : '';
+  }).join('');
+  const units = `<div><h3>الوحدات</h3><ul><li><a href="/units/">الوحدات</a></li></ul></div>`;
+  return `<nav class="${cls}" aria-label="صفحات الموقع">${groups}${units}</nav>`;
+};
 
 const legal = `<div class="legal">
           <span>السجل التجاري: <b class="ltr">${site.commercial_registration}</b></span>
@@ -179,6 +189,16 @@ for (const p of pages) {
   writeFileSync(join(pub, p.slug, 'index.html'), page(p));
 }
 
+const builtUnits = buildUnitPages({
+  publicDir: pub,
+  site,
+  office,
+  legal,
+  pageLinks: pageLinks('page-links'),
+  units: unitsDoc.units,
+  preview: previewDrafts,
+});
+
 // Home page: hand-written, except the blocks between <!-- build:NAME --> and <!-- /build:NAME -->.
 const blocks = {
   schema: schema([{ ...office, url: url() }, { '@type': 'WebSite', '@id': `${site.origin}/#site`, url: url(), name: site.name.ar, inLanguage: 'ar', publisher: { '@id': office['@id'] } }]),
@@ -204,9 +224,11 @@ writeFileSync(join(pub, '404.html'), `<!doctype html><html lang="ar" dir="rtl"><
 writeFileSync(join(pub, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>${url()}</loc><lastmod>${site.home_updated}</lastmod></url>
-${live.map((p) => `  <url><loc>${url(p)}</loc><lastmod>${p.updated}</lastmod></url>\n`).join('')}</urlset>
+${live.map((p) => `  <url><loc>${url(p)}</loc><lastmod>${p.updated}</lastmod></url>\n`).join('')}  <url><loc>${site.origin}/units/</loc><lastmod>${unitsDoc.updated}</lastmod></url>
+${unitsLive.map((u) => `  <url><loc>${site.origin}/units/${u.code}/</loc><lastmod>${u.updated}</lastmod></url>\n`).join('')}</urlset>
 `);
 
+const INDEX_NOTE = 'الوحدات المنشورة لدى المكتب بعد اعتماد المواصفات والسعر.';
 writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})
 
 > ${site.summary}
@@ -223,6 +245,10 @@ writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})
 ## الصفحات
 
 - [الرئيسية](${url()}): ${site.summary}
-${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}`);
+${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}
+## الوحدات
 
-console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), index.html blocks, 404.html, sitemap.xml (${live.length + 1} urls), llms.txt`);
+- [الوحدات](${site.origin}/units/): ${INDEX_NOTE}
+${unitsLive.map((u) => `- [${u.code}](${site.origin}/units/${u.code}/): ${u.seo.description}\n`).join('')}`);
+
+console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), ${builtUnits.published.length} published unit(s)${previewDrafts ? `, previewing ${builtUnits.visible.length}` : ''}, index.html blocks, 404.html, sitemap.xml (${live.length + 2 + unitsLive.length} urls), llms.txt`);

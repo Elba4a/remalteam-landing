@@ -1,0 +1,30 @@
+{
+  "updated": "2026-10-24",
+  "units": [
+    {
+      "code": "RT-001",
+      "_placeholder": true,
+      "status": "draft",
+      "updated": "2026-10-24",
+      "type": null,
+      "area_m2": null,
+      "rooms": null,
+      "bathrooms": null,
+      "floor": null,
+      "neighbourhood": null,
+      "city": null,
+      "payment": null,
+      "price": { "hidden": true, "amount": null, "currency": "SAR" },
+      "seo": {
+        "title": "وحدة RT-001 | بيانات تجريبية",
+        "description": "بيانات تجريبية غير منشورة للوحدة RT-001. المواصفات والسعر غير معتمدة."
+      },
+      "media": {
+        "cover": "cover.jpg",
+        "photos": ["cover.jpg", "inside.jpg"],
+        "video": "tour.mp4",
+        "poster": "poster.jpg"
+      }
+    }
+  ]
+}
