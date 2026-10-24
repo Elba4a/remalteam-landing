@@ -2,16 +2,14 @@
 // (ref, unit_type, deal, district, ad_licence). The site JSON is mapped onto
 // this shape in units-lib before render.
 export const HIDDEN_PRICE = 'السعر عند التواصل';
-export const LISTING_TYPES = ['sale', 'rent'];
-export const PRICE_PERIODS = ['yearly', 'monthly', 'daily'];
+export const DEAL_LABEL = 'للبيع';
+export const CLOSED_CTA = 'تم البيع';
 
-const PERIOD_LABEL = { yearly: 'سنوياً', monthly: 'شهرياً', daily: 'يومياً' };
 const STATUS_BADGE = {
   available: ['rt-badge', 'متاح'],
   new: ['rt-badge rt-badge--new', 'جديد'],
   reserved: ['rt-badge rt-badge--reserved', 'محجوز'],
   sold: ['rt-badge rt-badge--sold', 'مباع'],
-  rented: ['rt-badge rt-badge--rented', 'مؤجّر'],
   offplan: ['rt-badge rt-badge--offplan', 'على الخارطة'],
 };
 
@@ -20,7 +18,6 @@ export const STATUS_LABEL = {
   available: 'متاح',
   reserved: 'محجوز',
   sold: 'مباع',
-  rented: 'مؤجّر',
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -47,19 +44,6 @@ export function licenceExpired(unit, today = new Date()) {
 /** Full riyals, Western digits, en-US grouping. Never shortened to thousands. */
 export function formatPriceAmount(amount) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0, useGrouping: true }).format(amount);
-}
-
-export function listingTypeOf(unit) {
-  if (unit.listing_type == null || unit.listing_type === '') return 'sale';
-  return unit.listing_type;
-}
-
-export function dealLabel(listingType) {
-  return listingType === 'rent' ? 'للإيجار' : 'للبيع';
-}
-
-export function closedCtaLabel(status) {
-  return status === 'rented' ? 'تم التأجير' : 'تم البيع';
 }
 
 export function locationLine(district, city) {
@@ -92,9 +76,8 @@ function countPhrase(n, singular, plural) {
 export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}) {
   const number = typeof unit.ad_licence?.number === 'string' ? unit.ad_licence.number.trim() : '';
   const draft = unit.status === 'draft' || unit.placeholder === true || unit.expired === true || !number;
-  const closed = unit.status === 'sold' || unit.status === 'rented';
+  const closed = unit.status === 'sold';
   const showDashes = draft;
-  const deal = LISTING_TYPES.includes(unit.deal) ? unit.deal : 'sale';
   const specs = unit.specs || {};
   const items = [];
 
@@ -122,10 +105,9 @@ export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}
   const where = locationLine(unit.district, unit.city);
   const badge = STATUS_BADGE[unit.status];
   const hidden = unit.price?.hidden === true || unit.price?.amount == null;
-  const period = PERIOD_LABEL[unit.price?.period] || '';
   const priceParts = hidden
     ? { hidden: true, amount: HIDDEN_PRICE, suffix: '' }
-    : { hidden: false, amount: formatPriceAmount(unit.price.amount), suffix: period ? `ر.س ${period}` : 'ر.س' };
+    : { hidden: false, amount: formatPriceAmount(unit.price.amount), suffix: 'ر.س' };
   const qr = typeof unit.ad_licence?.qr === 'string' ? unit.ad_licence.qr : '';
   const qrImg = number && qr
     ? `<img src="${esc(qr)}" alt="${esc(`رمز QR لترخيص الإعلان ${number}`)}" width="72" height="72" loading="lazy">`
@@ -149,7 +131,7 @@ export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}
     html: {
       status: badge ? `<span class="${badge[0]}">${badge[1]}</span>` : '',
       type: typeof unit.unit_type === 'string' ? unit.unit_type.trim() : '',
-      deal: dealLabel(deal),
+      deal: DEAL_LABEL,
       title: typeof unit.title === 'string' && unit.title.trim() ? unit.title.trim() : (unit.unit_type || unit.ref || ''),
       location: where ? `${icon(iconHref, 'pin')}<span>${esc(where)}</span>` : '',
       specs: items.join(''),

@@ -12,7 +12,7 @@ export function renderListingCard(unit, company, { iconHref = '/assets/icons.svg
   const linkedMedia = v.detailHref ? `<a href="${esc(v.detailHref)}">${media}</a>` : media;
   const tag = unit.sample ? '<span class="rt-card-tag">مثال</span>' : (v.draft ? '<span class="rt-card-tag rt-card-tag--draft">مسودة</span>' : '');
   const cta = v.closed
-    ? `<a class="rt-btn rt-btn-primary" aria-disabled="true">${unit.status === 'rented' ? 'تم التأجير' : 'تم البيع'}</a>`
+    ? `<a class="rt-btn rt-btn-primary" aria-disabled="true">تم البيع</a>`
     : v.waDisabled
       ? `<a class="rt-btn rt-btn-primary" aria-disabled="true">${h.cta}</a>`
       : `<a class="rt-btn rt-btn-primary" href="${esc(v.wa_link)}" target="_blank" rel="noopener">${h.cta}</a>`;

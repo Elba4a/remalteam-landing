@@ -118,7 +118,7 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
 .unit-status { margin: 0; padding: 2px 8px; border-radius: 2px; background: var(--gold-soft); color: var(--gold-text); font: 600 13px/20px var(--f-body); }
 .unit-status--available { background: var(--success-soft); color: var(--success); }
 .unit-status--reserved { background: var(--warning-soft); color: var(--warning); }
-.unit-status--sold, .unit-status--rented { background: var(--danger-soft); color: var(--danger); }
+.unit-status--sold { background: var(--danger-soft); color: var(--danger); }
 .unit-layout--closed .unit-gallery img { opacity: .6; }
 .unit-specs { display: grid; margin: 0; }
 .unit-specs div { display: grid; grid-template-columns: 7.5rem 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }

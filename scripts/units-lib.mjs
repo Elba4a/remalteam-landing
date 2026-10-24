@@ -6,15 +6,12 @@ import { join, resolve, sep } from 'node:path';
 import { renderListingCard } from './rt-listing-card.mjs';
 import {
   HIDDEN_PRICE,
-  LISTING_TYPES,
-  PRICE_PERIODS,
+  CLOSED_CTA,
+  DEAL_LABEL,
   STATUS_LABEL,
-  closedCtaLabel,
-  dealLabel,
   esc,
   formatPriceAmount,
   licenceExpired,
-  listingTypeOf,
   locationLine,
   riyadhDate,
   waHref,
@@ -24,13 +21,13 @@ import {
 export { HIDDEN_PRICE, esc, licenceExpired, riyadhDate, waHref, waMessage };
 
 export const CODE_RE = /^[A-Z]{2,4}-\d{3,4}$/;
-export const STATUSES = ['draft', 'available', 'reserved', 'sold', 'rented'];
+export const STATUSES = ['draft', 'available', 'reserved', 'sold'];
 export const LICENSE_NUMBER_RE = /^[0-9]{6,20}$/;
-export const PAYMENTS = ['cash', 'finance', 'rent'];
+export const PAYMENTS = ['cash', 'finance'];
 export const VIDEO_MAX_BYTES = 3 * 1024 * 1024;
 export const PLACEHOLDER_FLAG = 'بيانات تجريبية — الموقع والمواصفات غير مكتملة، ولا توجد رخصة إعلان، وهذه الوحدة غير منشورة.';
 
-const PAYMENT_LABEL = { cash: 'كاش', finance: 'تمويل', rent: 'إيجار' };
+const PAYMENT_LABEL = { cash: 'كاش', finance: 'تمويل' };
 const LOCAL_FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -120,10 +117,10 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
         if (typeof unit.price.amount !== 'number' || !Number.isFinite(unit.price.amount) || unit.price.amount < 0) errors.push(`${label}: missing price`);
         if (unit.price.currency !== 'SAR') errors.push(`${label}: price.currency must be SAR`);
       } else if (unit.price.currency != null && unit.price.currency !== 'SAR') errors.push(`${label}: price.currency must be SAR`);
-      if (unit.price.period != null && unit.price.period !== '' && !PRICE_PERIODS.includes(unit.price.period)) errors.push(`${label}: bad price.period`);
+      if (Object.prototype.hasOwnProperty.call(unit.price, 'period')) errors.push(`${label}: price.period is not used`);
     }
 
-    if (unit.listing_type != null && unit.listing_type !== '' && !LISTING_TYPES.includes(unit.listing_type)) errors.push(`${label}: bad listing_type`);
+    if (Object.prototype.hasOwnProperty.call(unit, 'listing_type')) errors.push(`${label}: listing_type is not used`);
     if (unit._placeholder != null && typeof unit._placeholder !== 'boolean') errors.push(`${label}: _placeholder must be true or false`);
     if (unit._placeholder === true && unit.status !== 'draft') errors.push(`${label}: placeholder units must stay status draft`);
 
@@ -211,8 +208,7 @@ function dash(value) {
 
 function priceView(unit) {
   if (unit.price?.hidden === true || unit.price?.amount == null) return { hidden: true, text: HIDDEN_PRICE };
-  const suffix = unit.price.period === 'yearly' ? 'ر.س سنوياً' : unit.price.period === 'monthly' ? 'ر.س شهرياً' : unit.price.period === 'daily' ? 'ر.س يومياً' : 'ر.س';
-  return { hidden: false, amount: formatPriceAmount(unit.price.amount), currency: suffix };
+  return { hidden: false, amount: formatPriceAmount(unit.price.amount), currency: 'ر.س' };
 }
 
 function cardTitle(unit) {
@@ -258,7 +254,7 @@ function toSpecUnit(unit, today) {
     expired: licenceExpired(unit, today),
     title: cardTitle(unit),
     unit_type: typeof unit.type === 'string' ? unit.type.trim() : '',
-    deal: listingTypeOf(unit),
+    deal: DEAL_LABEL,
     district: unit.neighbourhood,
     city: unit.city,
     specs: {
@@ -289,7 +285,7 @@ function cardPhotoBase(unit) {
 
 export function unitCardView(unit, whatsappUrl, today = new Date()) {
   const expired = licenceExpired(unit, today);
-  const closed = unit.status === 'sold' || unit.status === 'rented';
+  const closed = unit.status === 'sold';
   const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
   const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
   const placeholder = unit._placeholder === true || unit.status === 'draft' || expired;
@@ -304,7 +300,7 @@ export function unitCardView(unit, whatsappUrl, today = new Date()) {
     alt: cardTitle(unit),
     status: unit.status,
     statusLabel: STATUS_LABEL[unit.status] || unit.status,
-    dealLabel: dealLabel(listingTypeOf(unit)),
+    dealLabel: DEAL_LABEL,
     title: cardTitle(unit),
     specs: specRows(unit),
     price: priceView(unit),
@@ -466,7 +462,7 @@ function renderDetail(unit, ctx) {
     ? esc(view.price.text)
     : `<span class="ltr">${esc(view.price.amount)}</span> ${esc(view.price.currency)}`;
   const showFlag = view.placeholder;
-  const ctaLabel = view.closed ? closedCtaLabel(unit.status) : 'تواصل عبر واتساب';
+  const ctaLabel = view.closed ? CLOSED_CTA : 'تواصل عبر واتساب';
   const waButton = view.disabledWa
     ? `<span class="btn btn-gold btn-disabled" aria-disabled="true">${ICON_CHAT}${esc(ctaLabel)}</span>`
     : `<a class="btn btn-gold" href="${esc(view.waHref)}" target="_blank" rel="noopener">${ICON_CHAT}${esc(ctaLabel)}</a>`;
@@ -479,7 +475,7 @@ function renderDetail(unit, ctx) {
     '@type': 'Offer',
     priceCurrency: 'SAR',
     price: unit.price.amount,
-    availability: unit.status === 'sold' || unit.status === 'rented' ? 'https://schema.org/SoldOut' : unit.status === 'reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+    availability: unit.status === 'sold' ? 'https://schema.org/SoldOut' : unit.status === 'reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
   };
   const listing = {
     '@type': 'RealEstateListing',

@@ -224,41 +224,40 @@ test('a non-draft unit missing a REGA licence fails, and an expired licence is w
   assert.equal(existsSync(join(expiredDir, 'units/RT-009/index.html')), false);
 });
 
-test('sold and rented cards name the closed state and disable WhatsApp', () => {
+test('a sold card names the closed state and disables WhatsApp', () => {
   const today = new Date('2026-10-24T12:00:00+03:00');
   const sold = base({ code: 'RT-003', status: 'sold' });
-  const rented = base({ code: 'RT-004', status: 'rented' });
-  const { publicDir } = fixture([sold, rented]);
-  const { units } = validateUnits({ updated: '2026-10-24', units: [sold, rented] }, { publicDir, today });
+  const { publicDir } = fixture([sold]);
+  const { units } = validateUnits({ updated: '2026-10-24', units: [sold] }, { publicDir, today });
   buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units, today });
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
   assert.ok(html.includes('تم البيع'));
-  assert.ok(html.includes('تم التأجير'));
   assert.ok(html.includes('مباع'));
-  assert.ok(html.includes('مؤجّر'));
+  assert.ok(html.includes('للبيع'));
   assert.ok(html.includes('rt-card--closed'));
   assert.ok(html.includes('aria-disabled="true"'));
   assert.equal(html.includes('rt-btn--disabled'), false);
   assert.equal(html.includes('جيتكم من الموقع'), false);
   const detail = readFileSync(join(publicDir, 'units/RT-003/index.html'), 'utf8');
   assert.ok(detail.includes('تم البيع'));
+  assert.ok(detail.includes('class="unit-deal">للبيع'));
   assert.ok(detail.includes('aria-disabled="true"'));
   assert.equal(detail.includes(waMessage('RT-003')), false);
   assert.equal(publishedUnits([base({ ad_license_expiry: '2026-10-24' })], today).length, 1);
 });
 
-test('listing_type defaults to sale and only accepts sale or rent', () => {
-  const { publicDir } = fixture([base(), base({ code: 'RT-008', listing_type: 'rent' })]);
-  assert.match(errorsOf([base({ listing_type: 'lease' })], publicDir), /bad listing_type/);
-  const { units } = validateUnits({ updated: '2026-10-24', units: [base(), base({ code: 'RT-008', listing_type: 'rent' })] }, { publicDir });
+test('listing_type and a price period are rejected, and every card says للبيع', () => {
+  const { publicDir } = fixture([base()]);
+  assert.match(errorsOf([base({ listing_type: 'sale' })], publicDir), /listing_type is not used/);
+  assert.match(errorsOf([base({ price: { hidden: false, amount: 850000, currency: 'SAR', period: 'yearly' } })], publicDir), /price\.period is not used/);
+  assert.match(errorsOf([base({ status: 'leased' })], publicDir), /bad status/);
+  assert.match(errorsOf([base({ payment: 'lease' })], publicDir), /missing payment/);
+  const { units } = validateUnits({ updated: '2026-10-24', units: [base()] }, { publicDir });
   buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units });
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
-  const sale = html.slice(html.indexOf('data-ref="RT-002"'), html.indexOf('data-ref="RT-008"'));
-  const rent = html.slice(html.indexOf('data-ref="RT-008"'), html.indexOf('</article>', html.indexOf('data-ref="RT-008"')));
-  assert.ok(sale.includes('للبيع'));
-  assert.equal(sale.includes('للإيجار'), false);
-  assert.ok(rent.includes('للإيجار'));
-  assert.equal(rent.includes('status="rented"'), false);
+  const detail = readFileSync(join(publicDir, 'units/RT-002/index.html'), 'utf8');
+  assert.ok(html.includes('للبيع'));
+  assert.ok(detail.includes('class="unit-deal">للبيع'));
 });
 
 test('the checked-in sample stays a draft sale at the full riyal price', () => {
@@ -267,8 +266,7 @@ test('the checked-in sample stays a draft sale at the full riyal price', () => {
   assert.equal(unit.code, 'RT-001');
   assert.equal(unit.status, 'draft');
   assert.equal(unit._placeholder, true);
-  assert.equal(unit.listing_type, 'sale');
-  assert.equal(unit.status === 'rented', false);
+  assert.equal(unit.listing_type, undefined);
   assert.deepEqual(publishedUnits(doc.units), []);
   for (const key of ['type', 'area_m2', 'rooms', 'bathrooms', 'floor', 'neighbourhood', 'city', 'payment']) {
     assert.equal(unit[key], null);

@@ -51,7 +51,7 @@
 @media (max-width:480px){.rt-card-foot{flex-direction:column;align-items:stretch}}
 .rt-badge{display:inline-flex;align-items:center;height:24px;padding-inline:var(--space-2);border-radius:var(--radius-sm);font-size:12px;line-height:18px;font-weight:600;background:var(--success-soft);color:var(--success)}
 .rt-badge--reserved{background:var(--warning-soft);color:var(--warning)}
-.rt-badge--sold,.rt-badge--rented{background:var(--danger-soft);color:var(--danger)}
+.rt-badge--sold{background:var(--danger-soft);color:var(--danger)}
 .rt-badge--new{background:var(--gold-soft);color:var(--gold-text)}
 .rt-badge--offplan{background:var(--surface-sand);color:var(--ink)}
 .rt-card-media > a{position:absolute;inset:0;color:inherit;text-decoration:none}
