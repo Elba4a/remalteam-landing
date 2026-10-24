@@ -7,6 +7,7 @@ import {
   buildRtf1Message,
   buildRtf1Url,
   dobRange,
+  normalizeSaudiMobile,
   validateRtf1,
 } from '../public/assets/rtf1-message.js';
 
@@ -14,10 +15,9 @@ const TODAY = new Date(2026, 9, 24);
 
 const full = {
   name: 'محمد عبدالله القحطاني',
-  netSalary: 14500,
-  basicSalary: 9800,
-  sector: 'عسكري',
-  rank: 'رقيب',
+  phone: '0551234567',
+  employer: 'عسكري',
+  salary: 14500,
   dob: '1992-03-14',
   hireDate: '2014-08-01',
   salaryBank: 'اسم البنك',
@@ -33,11 +33,10 @@ const full = {
 
 const partial = {
   name: 'سارة علي',
-  netSalary: 9000,
-  basicSalary: null,
-  sector: 'خاص',
-  rank: '',
-  dob: '1995-06-01',
+  phone: '+966512345678',
+  employer: 'خاص',
+  salary: 9000,
+  dob: '',
   hireDate: '',
   salaryBank: '',
   obligationsAmount: null,
@@ -47,8 +46,10 @@ const partial = {
   downPayment: null,
   propertyPrice: null,
   propertyType: '',
-  city: 'أبها',
+  city: '',
 };
+
+const ready = (extra = {}) => ({ name: 'محمد علي', phone: '0551234567', employer: 'خاص', salary: '9000', ...extra });
 
 test('message starts with #RTF1 and keeps fixed key order', () => {
   const message = buildRtf1Message(full);
@@ -57,28 +58,43 @@ test('message starts with #RTF1 and keeps fixed key order', () => {
   assert.equal(message.endsWith('\n'), false);
   assert.deepEqual(lines.slice(1).map((line) => line.split(': ')[0]), RTF1_KEYS);
   assert.equal(lines[1], 'الاسم: محمد عبدالله القحطاني');
-  assert.equal(lines[9], 'الالتزامات: 1800 / 24');
+  assert.equal(lines[2], 'رقم الجوال: 966551234567');
+  assert.equal(lines[4], 'الراتب تقريباً: 14500');
   assert.equal(lines.at(-1), 'المدينة/الحي: خميس مشيط / الواحة');
+  for (const gone of ['الراتب الصافي', 'الراتب الأساسي', 'القطاع', 'الرتبة/الوظيفة']) {
+    assert.equal(message.includes(gone), false, gone);
+  }
 });
 
-test('empty optional lines are omitted and قرض الدفاع stays off a non-military sector', () => {
+test('empty optional lines are omitted and قرض الدفاع stays off a non-military employer', () => {
   const message = buildRtf1Message(partial);
   assert.equal(message, [
     '#RTF1',
     'الاسم: سارة علي',
-    'الراتب الصافي: 9000',
-    'القطاع: خاص',
-    'تاريخ الميلاد: 1995-06-01',
-    'المدينة/الحي: أبها',
+    'رقم الجوال: 966512345678',
+    'جهة العمل: خاص',
+    'الراتب تقريباً: 9000',
   ].join('\n'));
   assert.equal(message.split('\n')[0], '#RTF1');
-  for (const key of ['الراتب الأساسي', 'الرتبة/الوظيفة', 'تاريخ التعيين', 'بنك الراتب', 'الالتزامات', 'سكني', 'قرض الدفاع', 'الدفعة', 'سعر العقار', 'نوع العقار']) {
+  for (const key of ['تاريخ الميلاد', 'تاريخ التعيين', 'بنك الراتب', 'الالتزامات', 'سكني', 'قرض الدفاع', 'الدفعة', 'سعر العقار', 'نوع العقار', 'المدينة/الحي']) {
     assert.equal(message.includes(key), false, key);
   }
 });
 
+test('Saudi mobiles normalise to 9665XXXXXXXX in Western digits', () => {
+  assert.equal(normalizeSaudiMobile('0551234567'), '966551234567');
+  assert.equal(normalizeSaudiMobile('+966551234567'), '966551234567');
+  assert.equal(normalizeSaudiMobile('966551234567'), '966551234567');
+  assert.equal(normalizeSaudiMobile('00966551234567'), '966551234567');
+  assert.equal(normalizeSaudiMobile('٠٥٥١٢٣٤٥٦٧'), '966551234567');
+  assert.equal(normalizeSaudiMobile('+966 55 123 4567'), '966551234567');
+  assert.equal(normalizeSaudiMobile('0451234567'), '');
+  assert.equal(normalizeSaudiMobile('+966412345678'), '');
+  assert.equal(normalizeSaudiMobile('055123'), '');
+});
+
 test('newlines inside a value stay on one line', () => {
-  const message = buildRtf1Message({ name: 'محمد\nعلي', netSalary: 9000, sector: 'خاص', dob: '1995-06-01' });
+  const message = buildRtf1Message({ name: 'محمد\nعلي', phone: '966551234567', employer: 'خاص', salary: 9000 });
   assert.equal(message.split('\n')[1], 'الاسم: محمد علي');
   assert.equal(message.split('\n').length, 5);
 });
@@ -96,7 +112,7 @@ test('WhatsApp URL is percent-encoded and round-trips', () => {
   assert.doesNotMatch(encoded, /\+/);
   assert.doesNotMatch(url, /\n/);
 
-  const ampersand = buildRtf1Url({ name: 'علي', netSalary: 9000, sector: 'خاص', dob: '1995-06-01', city: 'أ&ب' });
+  const ampersand = buildRtf1Url({ name: 'علي', phone: '0551234567', employer: 'خاص', salary: 9000, city: 'أ&ب' });
   assert.match(ampersand, /%26/);
   assert.equal(decodeURIComponent(ampersand.split('?text=')[1]).includes('أ&ب'), true);
 
@@ -112,68 +128,77 @@ test('spec examples in docs/rtf1-format.md match the builder', () => {
   assert.equal(examples[1], buildRtf1Message(partial));
   const site = JSON.parse(readFileSync(new URL('../content/site.json', import.meta.url), 'utf8'));
   assert.equal(WA_BASE, site.whatsapp.url);
+  assert.match(doc, /جهة العمل/);
+  assert.match(doc, /رقم الجوال/);
+  assert.match(doc, /الراتب تقريباً/);
+  assert.doesNotMatch(doc, /القطاع|الراتب الصافي|حكومي مدني/);
 });
 
-test('validation bounds, Western digits, and required fields', () => {
+test('validation bounds, Western digits, and the four required fields', () => {
   const missing = validateRtf1({}, TODAY);
   assert.equal(missing.ok, false);
-  assert.ok(missing.errors.name && missing.errors.netSalary && missing.errors.sector && missing.errors.dob);
+  assert.ok(missing.errors.name && missing.errors.phone && missing.errors.employer && missing.errors.salary);
+  assert.equal(missing.errors.dob, undefined);
 
-  assert.equal(validateRtf1({ name: 'محمد علي', netSalary: '999', sector: 'خاص', dob: '1990-01-01' }, TODAY).errors.netSalary.includes('1000'), true);
-  assert.equal(validateRtf1({ name: 'محمد علي', netSalary: '500001', sector: 'خاص', dob: '1990-01-01' }, TODAY).ok, false);
-  assert.equal(validateRtf1({ name: 'محمد2', netSalary: '9000', sector: 'خاص', dob: '1990-01-01' }, TODAY).errors.name.includes('أرقام'), true);
+  assert.equal(validateRtf1(ready({ salary: '999' }), TODAY).errors.salary.includes('1000'), true);
+  assert.equal(validateRtf1(ready({ salary: '500001' }), TODAY).ok, false);
+  assert.equal(validateRtf1(ready({ salary: '1000' }), TODAY).ok, true);
+  assert.equal(validateRtf1(ready({ salary: '500000' }), TODAY).ok, true);
+  assert.equal(validateRtf1(ready({ name: 'محمد2' }), TODAY).errors.name.includes('أرقام'), true);
+  assert.equal(validateRtf1(ready({ phone: '0451234567' }), TODAY).ok, false);
 
   const digits = validateRtf1({
     name: 'محمد علي',
-    netSalary: '١٤٥٠٠',
-    sector: 'عسكري',
-    dob: '1992-03-14',
+    phone: '٠٥٥١٢٣٤٥٦٧',
+    employer: 'عسكري',
+    salary: '١٤٥٠٠',
     modLoan: 'لا',
     city: 'حي ١٢',
   }, TODAY);
   assert.equal(digits.ok, true, JSON.stringify(digits.errors));
+  assert.equal(digits.value.phone, '966551234567');
   const message = buildRtf1Message(digits.value);
-  assert.match(message, /الراتب الصافي: 14500/);
+  assert.match(message, /رقم الجوال: 966551234567/);
+  assert.match(message, /الراتب تقريباً: 14500/);
+  assert.match(message, /جهة العمل: عسكري/);
   assert.match(message, /قرض الدفاع: لا/);
   assert.match(message, /المدينة\/الحي: حي 12/);
   assert.doesNotMatch(message, /[٠-٩۰-۹]/);
+  assert.doesNotMatch(message, /تاريخ الميلاد/);
 
-  const young = validateRtf1({ name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '2008-10-25' }, TODAY);
-  const ofAge = validateRtf1({ name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '2008-10-24' }, TODAY);
-  const oldest = validateRtf1({ name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '1950-10-25' }, TODAY);
-  const older = validateRtf1({ name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '1950-10-24' }, TODAY);
+  const young = validateRtf1(ready({ dob: '2008-10-25' }), TODAY);
+  const ofAge = validateRtf1(ready({ dob: '2008-10-24' }), TODAY);
+  const oldest = validateRtf1(ready({ dob: '1950-10-25' }), TODAY);
+  const older = validateRtf1(ready({ dob: '1950-10-24' }), TODAY);
   assert.equal(young.ok, false);
   assert.equal(ofAge.ok, true);
   assert.equal(oldest.ok, true);
   assert.equal(older.ok, false);
   assert.deepEqual(dobRange(TODAY), { min: '1950-10-25', max: '2008-10-24' });
 
-  const earlyHire = validateRtf1({
-    name: 'محمد علي', netSalary: '9000', sector: 'حكومي مدني', dob: '1992-03-14', hireDate: '2000-01-01',
-  }, TODAY);
+  const earlyHire = validateRtf1(ready({
+    employer: 'حكومي', dob: '1992-03-14', hireDate: '2000-01-01',
+  }), TODAY);
   assert.equal(earlyHire.ok, false);
   assert.match(earlyHire.errors.hireDate, /15/);
 
-  const price = validateRtf1({
-    name: 'محمد علي', netSalary: '9000', sector: 'متقاعد', dob: '1960-01-01', downPayment: '900000', propertyPrice: '800000',
-  }, TODAY);
+  const price = validateRtf1(ready({
+    employer: 'متقاعد', downPayment: '900000', propertyPrice: '800000',
+  }), TODAY);
   assert.equal(price.errors.downPayment, 'الدفعة أكبر من سعر العقار.');
 
-  const half = validateRtf1({
-    name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '1990-01-01', obligationsAmount: '1500',
-  }, TODAY);
+  const half = validateRtf1(ready({ obligationsAmount: '1500' }), TODAY);
   assert.match(half.errors.obligationsMonths, /معاً/);
 
-  const none = validateRtf1({
-    name: 'محمد علي', netSalary: '9000', sector: 'خاص', dob: '1990-01-01', obligationsAmount: '0', obligationsMonths: '0',
-  }, TODAY);
+  const none = validateRtf1(ready({ obligationsAmount: '0', obligationsMonths: '0' }), TODAY);
   assert.equal(none.ok, true);
   assert.match(buildRtf1Message(none.value), /الالتزامات: 0 \/ 0/);
 
-  const civilian = validateRtf1({
-    name: 'سارة علي', netSalary: '9000', sector: 'خاص', dob: '1995-06-01', modLoan: 'نعم', city: 'أبها',
-  }, TODAY);
+  const civilian = validateRtf1(ready({
+    phone: '+966512345678', employer: 'خاص', modLoan: 'نعم', city: 'أبها',
+  }), TODAY);
   assert.equal(civilian.ok, true);
   assert.equal(civilian.value.modLoan, '');
+  assert.equal(civilian.value.phone, '966512345678');
   assert.doesNotMatch(buildRtf1Message(civilian.value), /قرض الدفاع/);
 });

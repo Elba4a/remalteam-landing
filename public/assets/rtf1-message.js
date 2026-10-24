@@ -3,15 +3,13 @@
 
 export const WA_BASE = 'https://wa.me/966535330034';
 
-export const SECTORS = ['حكومي مدني', 'عسكري', 'خاص', 'متقاعد'];
+export const EMPLOYERS = ['حكومي', 'عسكري', 'خاص', 'متقاعد'];
 export const YES_NO = ['نعم', 'لا'];
 export const PROPERTY_TYPES = ['فيلا', 'شقة', 'دور', 'أرض', 'عمارة', 'أخرى'];
 
 export const LIMITS = {
   name: { min: 2, max: 80 },
-  net: { min: 1000, max: 500000 },
-  basic: { min: 0, max: 500000 },
-  rank: { min: 2, max: 80 },
+  salary: { min: 1000, max: 500000 },
   bank: { min: 2, max: 60 },
   city: { min: 2, max: 80 },
   obligations: { min: 0, max: 500000 },
@@ -25,10 +23,9 @@ export const LIMITS = {
 /** Fixed key order. Empty values are omitted, so a parser must match keys, not line numbers. */
 export const RTF1_KEYS = [
   'الاسم',
-  'الراتب الصافي',
-  'الراتب الأساسي',
-  'القطاع',
-  'الرتبة/الوظيفة',
+  'رقم الجوال',
+  'جهة العمل',
+  'الراتب تقريباً',
   'تاريخ الميلاد',
   'تاريخ التعيين',
   'بنك الراتب',
@@ -66,6 +63,16 @@ function dateText(value) {
   return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
 }
 
+/** Saudi mobile: 05XXXXXXXX or +9665XXXXXXXX (also 9665… and 009665…). Result is 9665XXXXXXXX. */
+export function normalizeSaudiMobile(raw) {
+  let s = toWesternDigits(raw).replace(/[\s\-().\u200e\u200f]/g, '');
+  if (s.startsWith('+')) s = s.slice(1);
+  else if (s.startsWith('00')) s = s.slice(2);
+  if (/^05\d{8}$/.test(s)) return `966${s.slice(1)}`;
+  if (/^9665\d{8}$/.test(s)) return s;
+  return '';
+}
+
 function obligations(data) {
   const amount = asInt(data.obligationsAmount);
   const months = asInt(data.obligationsMonths);
@@ -77,22 +84,18 @@ function obligations(data) {
 function lineValue(data, key) {
   switch (key) {
     case 'الاسم': return cleanText(data.name);
-    case 'الراتب الصافي': {
-      const n = asInt(data.netSalary);
+    case 'رقم الجوال': return normalizeSaudiMobile(data.phone);
+    case 'جهة العمل': return EMPLOYERS.includes(data.employer) ? data.employer : '';
+    case 'الراتب تقريباً': {
+      const n = asInt(data.salary);
       return n == null ? '' : String(n);
     }
-    case 'الراتب الأساسي': {
-      const n = asInt(data.basicSalary);
-      return n == null ? '' : String(n);
-    }
-    case 'القطاع': return SECTORS.includes(data.sector) ? data.sector : '';
-    case 'الرتبة/الوظيفة': return cleanText(data.rank);
     case 'تاريخ الميلاد': return dateText(data.dob);
     case 'تاريخ التعيين': return dateText(data.hireDate);
     case 'بنك الراتب': return cleanText(data.salaryBank);
     case 'الالتزامات': return obligations(data);
     case 'سكني': return yesNo(data.sakani);
-    case 'قرض الدفاع': return data.sector === 'عسكري' ? yesNo(data.modLoan) : '';
+    case 'قرض الدفاع': return data.employer === 'عسكري' ? yesNo(data.modLoan) : '';
     case 'الدفعة': {
       const n = asInt(data.downPayment);
       return n == null ? '' : String(n);
@@ -206,10 +209,9 @@ export function validateRtf1(raw, today = new Date()) {
   const errors = {};
   const value = {
     name: '',
-    netSalary: null,
-    basicSalary: null,
-    sector: '',
-    rank: '',
+    phone: '',
+    employer: '',
+    salary: null,
     dob: '',
     hireDate: '',
     salaryBank: '',
@@ -235,48 +237,32 @@ export function validateRtf1(raw, today = new Date()) {
   if (name.error) errors.name = name.error;
   else value.name = name.value;
 
-  const net = takeInt(src.netSalary, {
-    min: LIMITS.net.min,
-    max: LIMITS.net.max,
+  const phone = normalizeSaudiMobile(src.phone);
+  if (!cleanText(src.phone)) errors.phone = 'أدخل رقم الجوال.';
+  else if (!phone) errors.phone = 'أدخل جوالاً سعودياً: 05XXXXXXXX أو +9665XXXXXXXX.';
+  else value.phone = phone;
+
+  const employer = cleanText(src.employer);
+  if (!employer) errors.employer = 'اختر جهة العمل.';
+  else if (!EMPLOYERS.includes(employer)) errors.employer = 'اختر جهة العمل: حكومي، أو عسكري، أو خاص، أو متقاعد.';
+  else value.employer = employer;
+
+  const salary = takeInt(src.salary, {
+    min: LIMITS.salary.min,
+    max: LIMITS.salary.max,
     required: true,
-    emptyMsg: 'أدخل الراتب الصافي.',
-    badMsg: 'أدخل الراتب الصافي رقماً صحيحاً دون كسور.',
-    rangeMsg: `الراتب الصافي يجب أن يكون بين ${LIMITS.net.min} و ${LIMITS.net.max} ريال.`,
+    emptyMsg: 'أدخل الراتب التقريبي.',
+    badMsg: 'أدخل الراتب التقريبي رقماً صحيحاً دون كسور.',
+    rangeMsg: `الراتب التقريبي يجب أن يكون بين ${LIMITS.salary.min} و ${LIMITS.salary.max} ريال.`,
   });
-  if (net.error) errors.netSalary = net.error;
-  else value.netSalary = net.value;
-
-  const basic = takeInt(src.basicSalary, {
-    min: LIMITS.basic.min,
-    max: LIMITS.basic.max,
-    required: false,
-    badMsg: 'أدخل الراتب الأساسي رقماً صحيحاً دون كسور، أو اتركه فارغاً.',
-    rangeMsg: `الراتب الأساسي يجب أن يكون بين ${LIMITS.basic.min} و ${LIMITS.basic.max} ريال.`,
-  });
-  if (basic.error) errors.basicSalary = basic.error;
-  else value.basicSalary = basic.value;
-
-  const sector = cleanText(src.sector);
-  if (!sector) errors.sector = 'اختر القطاع.';
-  else if (!SECTORS.includes(sector)) errors.sector = 'اختر القطاع: حكومي مدني، أو عسكري، أو خاص، أو متقاعد.';
-  else value.sector = sector;
-
-  const rank = takeText(src.rank, {
-    min: LIMITS.rank.min,
-    max: LIMITS.rank.max,
-    required: false,
-    shortMsg: 'أدخل الرتبة أو المسمى من حرفين على الأقل، أو اترك الحقل فارغاً.',
-    longMsg: 'الرتبة أو المسمى أطول من 80 حرفاً.',
-    badMsg: 'أدخل الرتبة أو المسمى الوظيفي بحروف واضحة، أو اترك الحقل فارغاً.',
-  });
-  if (rank.error) errors.rank = rank.error;
-  else value.rank = rank.value;
+  if (salary.error) errors.salary = salary.error;
+  else value.salary = salary.value;
 
   const now = todayYMD(today);
-  const dob = parseYMD(src.dob);
-  if (!cleanText(src.dob)) errors.dob = 'أدخل تاريخ الميلاد.';
-  else if (!dob) errors.dob = 'أدخل تاريخ الميلاد بالشكل YYYY-MM-DD.';
-  else {
+  const dobRaw = cleanText(src.dob);
+  const dob = dobRaw ? parseYMD(dobRaw) : null;
+  if (dobRaw && !dob) errors.dob = 'أدخل تاريخ الميلاد بالشكل YYYY-MM-DD، أو اتركه فارغاً.';
+  else if (dob) {
     const age = ageYears(dob, now);
     if (age < LIMITS.age.min || age > LIMITS.age.max) errors.dob = `العمر يجب أن يكون بين ${LIMITS.age.min} و ${LIMITS.age.max} سنة.`;
     else value.dob = formatYMD(dob);
@@ -337,7 +323,7 @@ export function validateRtf1(raw, today = new Date()) {
   else value.sakani = sakani;
 
   const modLoan = cleanText(src.modLoan);
-  if (value.sector === 'عسكري') {
+  if (value.employer === 'عسكري') {
     if (modLoan && !YES_NO.includes(modLoan)) errors.modLoan = 'اختر نعم أو لا لقرض الدفاع، أو اتركه دون اختيار.';
     else value.modLoan = modLoan;
   } else {

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>طلب التمويل: ابعث بياناتك ويتواصل معك مستشار التمويل | الرمال تيم</title>
-<meta name="description" content="ابعث الاسم والراتب الصافي والقطاع وتاريخ الميلاد. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.">
+<meta name="description" content="ابعث الاسم ورقم الجوال وجهة العمل والراتب التقريبي. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.">
 <link rel="canonical" href="https://remalteam.com/mortgage-calculator/">
 <meta name="theme-color" content="#1C1D21">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
@@ -17,7 +17,7 @@
 <meta property="og:locale" content="ar_SA">
 <meta property="og:site_name" content="مكتب الرمال تيم العقارية">
 <meta property="og:title" content="طلب التمويل: ابعث بياناتك ويتواصل معك مستشار التمويل | الرمال تيم">
-<meta property="og:description" content="ابعث الاسم والراتب الصافي والقطاع وتاريخ الميلاد. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.">
+<meta property="og:description" content="ابعث الاسم ورقم الجوال وجهة العمل والراتب التقريبي. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.">
 <meta property="og:url" content="https://remalteam.com/mortgage-calculator/">
 <meta property="og:image" content="https://remalteam.com/assets/og.png">
 <meta name="twitter:card" content="summary_large_image">
@@ -102,7 +102,7 @@
       "@id": "https://remalteam.com/mortgage-calculator/",
       "url": "https://remalteam.com/mortgage-calculator/",
       "name": "طلب التمويل: ابعث بياناتك ويتواصل معك مستشار التمويل | الرمال تيم",
-      "description": "ابعث الاسم والراتب الصافي والقطاع وتاريخ الميلاد. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.",
+      "description": "ابعث الاسم ورقم الجوال وجهة العمل والراتب التقريبي. يتواصل معك مستشار التمويل عبر واتساب. بقية البيانات اختيارية، والرسالة تذهب إلى واتساب المكتب فقط.",
       "inLanguage": "ar",
       "isPartOf": {
         "@id": "https://remalteam.com/#site"
@@ -136,7 +136,7 @@
           "name": "ما البيانات المطلوبة؟",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "الاسم، والراتب الصافي، والقطاع، وتاريخ الميلاد. بقية الحقول اختيارية، وتُرسل إن أدخلتها."
+            "text": "الاسم، ورقم الجوال، وجهة العمل، والراتب التقريبي. بقية الحقول اختيارية داخل بيانات إضافية، وتُرسل إن أدخلتها."
           }
         },
         {
@@ -184,124 +184,121 @@
     <div class="wrap prose">
       <div class="sec-head"><h2>بيانات الطلب</h2><p class="en">Your details</p></div>
       <form class="rtf" id="rtf1" method="dialog" novalidate>
-  <p class="rtf-required">المطلوب: الاسم، الراتب الصافي، القطاع، تاريخ الميلاد. بقية الحقول اختيارية.</p>
+  <div class="rtf-help">
+    <p>لو حاب أحد من موظفينا يساعدك، أرسل تفاصيلك على الواتساب ونساعدك.</p>
+    <a class="btn btn-gold rtf-direct" href="https://wa.me/966535330034?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%A8%D8%BA%D9%89%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%AA%D9%85%D9%88%D9%8A%D9%84." target="_blank" rel="noopener"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>واتساب</a>
+  </div>
+  <p class="rtf-required">المطلوب: الاسم، رقم الجوال، جهة العمل، والراتب التقريبي.</p>
   <div id="rtf1-errors" class="rtf-errors" role="alert" hidden></div>
 
-  <h3>البيانات الأساسية</h3>
   <div class="rtf-grid">
     <label class="rtf-span">الاسم <span class="req">مطلوب</span>
       <input name="name" type="text" autocomplete="name" maxlength="80" required aria-describedby="err-name">
       <small id="err-name" class="err" data-err="name" hidden></small>
     </label>
-    <label>تاريخ الميلاد <span class="req">مطلوب</span>
-      <input name="dob" class="ltr" type="date" autocomplete="bday" required aria-describedby="err-dob">
-      <small id="err-dob" class="err" data-err="dob" hidden></small>
+    <label>رقم الجوال <span class="req">مطلوب</span>
+      <input name="phone" class="ltr" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="05XXXXXXXX" required aria-describedby="err-phone">
+      <small id="err-phone" class="err" data-err="phone" hidden></small>
+    </label>
+    <label>الراتب تقريباً (ريال) <span class="req">مطلوب</span>
+      <input name="salary" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="14500" required aria-describedby="err-salary">
+      <small id="err-salary" class="err" data-err="salary" hidden></small>
     </label>
     <fieldset class="rtf-span">
-      <legend>القطاع <span class="req">مطلوب</span></legend>
+      <legend>جهة العمل <span class="req">مطلوب</span></legend>
       <div class="rtf-choices">
-        <label><input type="radio" name="sector" value="حكومي مدني" required aria-describedby="err-sector"> حكومي مدني</label>
-        <label><input type="radio" name="sector" value="عسكري" aria-describedby="err-sector"> عسكري</label>
-        <label><input type="radio" name="sector" value="خاص" aria-describedby="err-sector"> خاص</label>
-        <label><input type="radio" name="sector" value="متقاعد" aria-describedby="err-sector"> متقاعد</label>
+        <label><input type="radio" name="employer" value="حكومي" required aria-describedby="err-employer"> حكومي</label>
+        <label><input type="radio" name="employer" value="عسكري" aria-describedby="err-employer"> عسكري</label>
+        <label><input type="radio" name="employer" value="خاص" aria-describedby="err-employer"> خاص</label>
+        <label><input type="radio" name="employer" value="متقاعد" aria-describedby="err-employer"> متقاعد</label>
       </div>
-      <small id="err-sector" class="err" data-err="sector" hidden></small>
+      <small id="err-employer" class="err" data-err="employer" hidden></small>
     </fieldset>
   </div>
 
-  <h3>الراتب والعمل</h3>
-  <div class="rtf-grid">
-    <label>الراتب الصافي (ريال) <span class="req">مطلوب</span>
-      <input name="netSalary" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="14500" required aria-describedby="err-netSalary">
-      <small id="err-netSalary" class="err" data-err="netSalary" hidden></small>
-    </label>
-    <label>الراتب الأساسي (ريال)
-      <input name="basicSalary" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="7" aria-describedby="err-basicSalary">
-      <small id="err-basicSalary" class="err" data-err="basicSalary" hidden></small>
-    </label>
-    <label>الرتبة/الوظيفة
-      <input name="rank" type="text" autocomplete="organization-title" maxlength="80" aria-describedby="err-rank">
-      <small class="rtf-hint">الرتبة للعسكري، والمسمى الوظيفي لغيره.</small>
-      <small id="err-rank" class="err" data-err="rank" hidden></small>
-    </label>
-    <label>تاريخ التعيين
-      <input name="hireDate" class="ltr" type="date" aria-describedby="err-hireDate">
-      <small id="err-hireDate" class="err" data-err="hireDate" hidden></small>
-    </label>
-    <label class="rtf-span">بنك الراتب
-      <input name="salaryBank" type="text" autocomplete="off" maxlength="60" aria-describedby="err-salaryBank">
-      <small id="err-salaryBank" class="err" data-err="salaryBank" hidden></small>
-    </label>
-  </div>
-
-  <h3>الالتزامات والدعم</h3>
-  <div class="rtf-grid">
-    <label>الالتزامات الشهرية (ريال)
-      <input name="obligationsAmount" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="7" aria-describedby="err-obligationsAmount">
-      <small class="rtf-hint">إن لم توجد التزامات، اترك الحقلين فارغين.</small>
-      <small id="err-obligationsAmount" class="err" data-err="obligationsAmount" hidden></small>
-    </label>
-    <label>الأشهر المتبقية
-      <input name="obligationsMonths" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="3" aria-describedby="err-obligationsMonths">
-      <small id="err-obligationsMonths" class="err" data-err="obligationsMonths" hidden></small>
-    </label>
-    <fieldset>
-      <legend>سكني</legend>
-      <div class="rtf-choices">
-        <label><input type="radio" name="sakani" value="نعم" aria-describedby="err-sakani"> نعم</label>
-        <label><input type="radio" name="sakani" value="لا" aria-describedby="err-sakani"> لا</label>
+  <details class="rtf-more" id="rtf1-more">
+    <summary>بيانات إضافية (اختياري)</summary>
+    <div class="rtf-more-body">
+      <div class="rtf-grid">
+        <label>تاريخ الميلاد
+          <input name="dob" class="ltr" type="date" autocomplete="bday" aria-describedby="err-dob">
+          <small id="err-dob" class="err" data-err="dob" hidden></small>
+        </label>
+        <label>تاريخ التعيين
+          <input name="hireDate" class="ltr" type="date" aria-describedby="err-hireDate">
+          <small id="err-hireDate" class="err" data-err="hireDate" hidden></small>
+        </label>
+        <label class="rtf-span">بنك الراتب
+          <input name="salaryBank" type="text" autocomplete="off" maxlength="60" aria-describedby="err-salaryBank">
+          <small id="err-salaryBank" class="err" data-err="salaryBank" hidden></small>
+        </label>
+        <label>الالتزامات الشهرية (ريال)
+          <input name="obligationsAmount" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="7" aria-describedby="err-obligationsAmount">
+          <small class="rtf-hint">إن لم توجد التزامات، اترك الحقلين فارغين.</small>
+          <small id="err-obligationsAmount" class="err" data-err="obligationsAmount" hidden></small>
+        </label>
+        <label>الأشهر المتبقية
+          <input name="obligationsMonths" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="3" aria-describedby="err-obligationsMonths">
+          <small id="err-obligationsMonths" class="err" data-err="obligationsMonths" hidden></small>
+        </label>
+        <fieldset>
+          <legend>سكني</legend>
+          <div class="rtf-choices">
+            <label><input type="radio" name="sakani" value="نعم" aria-describedby="err-sakani"> نعم</label>
+            <label><input type="radio" name="sakani" value="لا" aria-describedby="err-sakani"> لا</label>
+          </div>
+          <small class="rtf-hint">هل أنت مستفيد من الدعم السكني؟</small>
+          <small id="err-sakani" class="err" data-err="sakani" hidden></small>
+        </fieldset>
+        <fieldset id="mod-loan" hidden>
+          <legend>قرض الدفاع</legend>
+          <div class="rtf-choices">
+            <label><input type="radio" name="modLoan" value="نعم" aria-describedby="err-modLoan"> نعم</label>
+            <label><input type="radio" name="modLoan" value="لا" aria-describedby="err-modLoan"> لا</label>
+          </div>
+          <small class="rtf-hint">للعسكريين.</small>
+          <small id="err-modLoan" class="err" data-err="modLoan" hidden></small>
+        </fieldset>
+        <label>الدفعة (ريال)
+          <input name="downPayment" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="10" aria-describedby="err-downPayment">
+          <small id="err-downPayment" class="err" data-err="downPayment" hidden></small>
+        </label>
+        <label>سعر العقار (ريال)
+          <input name="propertyPrice" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="10" aria-describedby="err-propertyPrice">
+          <small id="err-propertyPrice" class="err" data-err="propertyPrice" hidden></small>
+        </label>
+        <label>نوع العقار
+          <select name="propertyType" aria-describedby="err-propertyType">
+            <option value="">غير محدد</option>
+            <option value="فيلا">فيلا</option>
+            <option value="شقة">شقة</option>
+            <option value="دور">دور</option>
+            <option value="أرض">أرض</option>
+            <option value="عمارة">عمارة</option>
+            <option value="أخرى">أخرى</option>
+          </select>
+          <small id="err-propertyType" class="err" data-err="propertyType" hidden></small>
+        </label>
+        <label>المدينة/الحي
+          <input name="city" type="text" maxlength="80" placeholder="أبها / المحالة" aria-describedby="err-city">
+          <small id="err-city" class="err" data-err="city" hidden></small>
+        </label>
       </div>
-      <small class="rtf-hint">هل أنت مستفيد من الدعم السكني؟</small>
-      <small id="err-sakani" class="err" data-err="sakani" hidden></small>
-    </fieldset>
-    <fieldset id="mod-loan" hidden>
-      <legend>قرض الدفاع</legend>
-      <div class="rtf-choices">
-        <label><input type="radio" name="modLoan" value="نعم" aria-describedby="err-modLoan"> نعم</label>
-        <label><input type="radio" name="modLoan" value="لا" aria-describedby="err-modLoan"> لا</label>
-      </div>
-      <small class="rtf-hint">للقطاع العسكري.</small>
-      <small id="err-modLoan" class="err" data-err="modLoan" hidden></small>
-    </fieldset>
-  </div>
-
-  <h3>العقار</h3>
-  <p class="rtf-hint">اختيارية. أدخلها إن كانت معروفة.</p>
-  <div class="rtf-grid">
-    <label>الدفعة (ريال)
-      <input name="downPayment" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="10" aria-describedby="err-downPayment">
-      <small id="err-downPayment" class="err" data-err="downPayment" hidden></small>
-    </label>
-    <label>سعر العقار (ريال)
-      <input name="propertyPrice" class="ltr" type="text" inputmode="numeric" autocomplete="off" maxlength="10" aria-describedby="err-propertyPrice">
-      <small id="err-propertyPrice" class="err" data-err="propertyPrice" hidden></small>
-    </label>
-    <label>نوع العقار
-      <select name="propertyType" aria-describedby="err-propertyType">
-        <option value="">غير محدد</option>
-        <option value="فيلا">فيلا</option>
-        <option value="شقة">شقة</option>
-        <option value="دور">دور</option>
-        <option value="أرض">أرض</option>
-        <option value="عمارة">عمارة</option>
-        <option value="أخرى">أخرى</option>
-      </select>
-      <small id="err-propertyType" class="err" data-err="propertyType" hidden></small>
-    </label>
-    <label>المدينة/الحي
-      <input name="city" type="text" maxlength="80" placeholder="أبها / المحالة" aria-describedby="err-city">
-      <small id="err-city" class="err" data-err="city" hidden></small>
-    </label>
-  </div>
+    </div>
+  </details>
 
   <div class="rtf-actions">
     <button class="btn btn-gold" type="submit">
       <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>
       إرسال البيانات عبر واتساب
     </button>
+    <div class="rtf-help">
+      <p>لو حاب أحد من موظفينا يساعدك، أرسل تفاصيلك على الواتساب ونساعدك.</p>
+      <a class="btn btn-gold rtf-direct" href="https://wa.me/966535330034?text=%D8%A7%D9%84%D8%B3%D9%84%D8%A7%D9%85%20%D8%B9%D9%84%D9%8A%D9%83%D9%85%D8%8C%20%D8%A3%D8%A8%D8%BA%D9%89%20%D9%85%D8%B3%D8%A7%D8%B9%D8%AF%D8%A9%20%D9%81%D9%8A%20%D8%A7%D9%84%D8%AA%D9%85%D9%88%D9%8A%D9%84." target="_blank" rel="noopener"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>واتساب</a>
+    </div>
     <p class="rtf-privacy">تذهب البيانات إلى واتساب المكتب فقط، ولا تُحفظ في الموقع ولا تُرسل إلى أي جهة أخرى.</p>
   </div>
-  <noscript><p>إرسال الرسالة يحتاج تشغيل جافاسكربت في المتصفح. الحقول لا تُرسل إلى خادم الموقع.</p></noscript>
+  <noscript><p>إرسال البيانات يحتاج تشغيل جافاسكربت في المتصفح. زر الواتساب أعلاه يفتح المحادثة مباشرة، والحقول لا تُرسل إلى خادم الموقع.</p></noscript>
 </form>
 <script type="module" src="/assets/rtf1-form.js"></script>
     </div>
@@ -315,7 +312,7 @@
   <section class="faq" aria-labelledby="faq-title">
     <div class="wrap prose">
       <div class="sec-head"><h2 id="faq-title">أسئلة شائعة</h2><p class="en">FAQ</p></div>
-      <details><summary>ما البيانات المطلوبة؟</summary><p>الاسم، والراتب الصافي، والقطاع، وتاريخ الميلاد. بقية الحقول اختيارية، وتُرسل إن أدخلتها.</p></details>
+      <details><summary>ما البيانات المطلوبة؟</summary><p>الاسم، ورقم الجوال، وجهة العمل، والراتب التقريبي. بقية الحقول اختيارية داخل بيانات إضافية، وتُرسل إن أدخلتها.</p></details>
       <details><summary>أين تذهب البيانات بعد الإرسال؟</summary><p>إلى واتساب المكتب فقط، عندما تضغط زر الإرسال. لا تُحفظ في الموقع ولا تُرسل إلى أي خادم آخر.</p></details>
       <details><summary>هل تظهر نتيجة في الصفحة؟</summary><p>لا. الصفحة تجمع البيانات فقط. مستشار التمويل يراجع الرسالة ويتواصل معك.</p></details>
     </div>

@@ -2,12 +2,17 @@
 import { buildRtf1Url, dobRange, validateRtf1 } from './rtf1-message.js';
 
 const FIELD_ORDER = [
-  'name', 'netSalary', 'basicSalary', 'sector', 'rank', 'dob', 'hireDate', 'salaryBank',
+  'name', 'phone', 'employer', 'salary', 'dob', 'hireDate', 'salaryBank',
   'obligationsAmount', 'obligationsMonths', 'sakani', 'modLoan', 'downPayment', 'propertyPrice',
   'propertyType', 'city',
 ];
 
-const NUMBER_FIELDS = ['netSalary', 'basicSalary', 'obligationsAmount', 'obligationsMonths', 'downPayment', 'propertyPrice'];
+const OPTIONAL = new Set([
+  'dob', 'hireDate', 'salaryBank', 'obligationsAmount', 'obligationsMonths', 'sakani', 'modLoan',
+  'downPayment', 'propertyPrice', 'propertyType', 'city',
+]);
+
+const NUMBER_FIELDS = ['salary', 'obligationsAmount', 'obligationsMonths', 'downPayment', 'propertyPrice'];
 
 function readForm(form) {
   const value = (name) => {
@@ -51,6 +56,9 @@ function showErrors(form, errors) {
   box.replaceChildren(title, list);
   box.hidden = false;
 
+  const more = form.querySelector('#rtf1-more');
+  if (more && FIELD_ORDER.some((name) => OPTIONAL.has(name) && errors[name])) more.open = true;
+
   for (const name of FIELD_ORDER) {
     const msg = errors[name] || '';
     const note = form.querySelector(`[data-err="${name}"]`);
@@ -71,7 +79,7 @@ function showErrors(form, errors) {
 }
 
 function syncMilitary(form) {
-  const military = form.elements.sector.value === 'عسكري';
+  const military = form.elements.employer.value === 'عسكري';
   const block = form.querySelector('#mod-loan');
   block.hidden = !military;
   if (!military) {
@@ -94,14 +102,14 @@ function bind(form) {
   const z = (n) => String(n).padStart(2, '0');
   form.elements.hireDate.max = `${today.getFullYear()}-${z(today.getMonth() + 1)}-${z(today.getDate())}`;
 
-  for (const el of form.querySelectorAll('input[name="sector"]')) {
+  for (const el of form.querySelectorAll('input[name="employer"]')) {
     el.addEventListener('change', () => syncMilitary(form));
   }
   syncMilitary(form);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
-    for (const name of NUMBER_FIELDS) {
+    for (const name of ['phone', ...NUMBER_FIELDS]) {
       const el = form.elements[name];
       if (el && el.value) el.value = el.value.trim();
     }

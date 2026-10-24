@@ -32,6 +32,16 @@ test('built lead page and scripts contain no instalment calculator', () => {
   assert.match(page, /تذهب البيانات إلى واتساب المكتب فقط/);
   assert.match(page, /ابعث بياناتك ويتواصل معك مستشار التمويل/);
   assert.doesNotMatch(page, /mortgage-calc\.js/);
+  assert.equal(page.split('لو حاب أحد من موظفينا يساعدك').length - 1, 2);
+  assert.match(page, /<summary>بيانات إضافية \(اختياري\)<\/summary>/);
+  const directs = [...page.matchAll(/<a class="btn btn-gold rtf-direct" href="([^"]+)" target="_blank" rel="noopener">/g)];
+  assert.equal(directs.length, 2);
+  const greetings = directs.map(([, href]) => decodeURIComponent(href.split('?text=')[1]));
+  assert.deepEqual(greetings, [
+    'السلام عليكم، أبغى مساعدة في التمويل.',
+    'السلام عليكم، أبغى مساعدة في التمويل.',
+  ]);
+  for (const greeting of greetings) assert.equal(greeting.startsWith('#RTF1'), false);
 
   const banned = [
     /مجاناً/,
