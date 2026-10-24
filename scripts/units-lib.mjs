@@ -4,43 +4,38 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { renderListingCard } from './rt-listing-card.mjs';
+import {
+  HIDDEN_PRICE,
+  LISTING_TYPES,
+  PRICE_PERIODS,
+  STATUS_LABEL,
+  closedCtaLabel,
+  dealLabel,
+  esc,
+  formatPriceAmount,
+  licenceExpired,
+  listingTypeOf,
+  locationLine,
+  riyadhDate,
+  waHref,
+  waMessage,
+} from './listing-view.mjs';
+
+export { HIDDEN_PRICE, esc, licenceExpired, riyadhDate, waHref, waMessage };
 
 export const CODE_RE = /^[A-Z]{2,4}-\d{3,4}$/;
 export const STATUSES = ['draft', 'available', 'reserved', 'sold', 'rented'];
 export const LICENSE_NUMBER_RE = /^[0-9]{6,20}$/;
 export const PAYMENTS = ['cash', 'finance', 'rent'];
 export const VIDEO_MAX_BYTES = 3 * 1024 * 1024;
-export const HIDDEN_PRICE = 'السعر عند التواصل';
-export const PLACEHOLDER_FLAG = 'بيانات تجريبية — المواصفات والسعر غير معتمدة، وهذه الوحدة غير منشورة.';
+export const PLACEHOLDER_FLAG = 'بيانات تجريبية — الموقع والمواصفات غير مكتملة، ولا توجد رخصة إعلان، وهذه الوحدة غير منشورة.';
 
-const STATUS_LABEL = { draft: 'مسودة', available: 'متاح', reserved: 'محجوز', sold: 'تم البيع', rented: 'تم التأجير' };
 const PAYMENT_LABEL = { cash: 'كاش', finance: 'تمويل', rent: 'إيجار' };
 const LOCAL_FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const IMAGE_RE = /\.(jpe?g|png|webp)$/i;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>';
-
-export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
-
-/** CRM lead text. Byte-exact: the office parser reads the source and the unit code from this string. */
-export function waMessage(code) {
-  return `السلام عليكم، جيتكم من الموقع - وحدة ${code}`;
-}
-
-/** wa.me link. Spaces are %20 (encodeURIComponent), never "+". */
-export function waHref(whatsappUrl, code) {
-  const base = String(whatsappUrl).replace(/\/$/, '');
-  return `${base}?text=${encodeURIComponent(waMessage(code))}`;
-}
-
-export function riyadhDate(today = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(today);
-}
-
-export function licenceExpired(unit, today = new Date()) {
-  return typeof unit.ad_license_expiry === 'string' && DATE_RE.test(unit.ad_license_expiry) && unit.ad_license_expiry < riyadhDate(today);
-}
 
 export function isPublic(unit, today = new Date()) {
   return unit.status !== 'draft' && !licenceExpired(unit, today);
@@ -125,8 +120,10 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
         if (typeof unit.price.amount !== 'number' || !Number.isFinite(unit.price.amount) || unit.price.amount < 0) errors.push(`${label}: missing price`);
         if (unit.price.currency !== 'SAR') errors.push(`${label}: price.currency must be SAR`);
       } else if (unit.price.currency != null && unit.price.currency !== 'SAR') errors.push(`${label}: price.currency must be SAR`);
+      if (unit.price.period != null && unit.price.period !== '' && !PRICE_PERIODS.includes(unit.price.period)) errors.push(`${label}: bad price.period`);
     }
 
+    if (unit.listing_type != null && unit.listing_type !== '' && !LISTING_TYPES.includes(unit.listing_type)) errors.push(`${label}: bad listing_type`);
     if (unit._placeholder != null && typeof unit._placeholder !== 'boolean') errors.push(`${label}: _placeholder must be true or false`);
     if (unit._placeholder === true && unit.status !== 'draft') errors.push(`${label}: placeholder units must stay status draft`);
 
@@ -214,33 +211,31 @@ function dash(value) {
 
 function priceView(unit) {
   if (unit.price?.hidden === true || unit.price?.amount == null) return { hidden: true, text: HIDDEN_PRICE };
-  const amount = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(unit.price.amount);
-  return { hidden: false, amount, currency: 'ر.س' };
-}
-
-function locationValue(unit) {
-  const parts = [unit.neighbourhood, unit.city].filter((part) => typeof part === 'string' && part.trim());
-  return parts.length ? parts.join('، ') : '—';
+  const suffix = unit.price.period === 'yearly' ? 'ر.س سنوياً' : unit.price.period === 'monthly' ? 'ر.س شهرياً' : unit.price.period === 'daily' ? 'ر.س يومياً' : 'ر.س';
+  return { hidden: false, amount: formatPriceAmount(unit.price.amount), currency: suffix };
 }
 
 function cardTitle(unit) {
   if (typeof unit.title === 'string' && unit.title.trim()) return unit.title.trim();
-  if (unit.status === 'draft' || unit._placeholder) return `وحدة ${unit.code}`;
-  const where = [unit.neighbourhood, unit.city].filter((part) => typeof part === 'string' && part.trim()).join('، ');
-  return where ? `${unit.type} — ${where}` : String(unit.type);
+  const type = typeof unit.type === 'string' ? unit.type.trim() : '';
+  if (type && typeof unit.area_m2 === 'number') return `${type} · ${formatPriceAmount(unit.area_m2)} م²`;
+  if (type) return type;
+  return `وحدة ${unit.code}`;
 }
 
 function specRows(unit) {
   const floor = unit.floor == null || unit.floor === '' ? '—' : String(unit.floor);
-  return [
+  const rows = [
     { label: 'النوع', value: dash(unit.type) },
-    { label: 'المساحة', value: unit.area_m2 == null ? '—' : String(unit.area_m2), ltr: unit.area_m2 != null, suffix: unit.area_m2 != null ? ' م²' : '' },
+    { label: 'المساحة', value: unit.area_m2 == null ? '—' : formatPriceAmount(unit.area_m2), ltr: unit.area_m2 != null, suffix: unit.area_m2 != null ? ' م²' : '' },
     { label: 'الغرف', value: unit.rooms == null ? '—' : String(unit.rooms), ltr: unit.rooms != null },
     { label: 'دورات المياه', value: unit.bathrooms == null ? '—' : String(unit.bathrooms), ltr: unit.bathrooms != null },
     { label: 'الدور', value: floor, ltr: typeof unit.floor === 'number' },
-    { label: 'الموقع', value: locationValue(unit) },
-    { label: 'الدفع', value: PAYMENT_LABEL[unit.payment] || '—' },
   ];
+  const where = locationLine(unit.neighbourhood, unit.city);
+  if (where) rows.push({ label: 'الموقع', value: where });
+  rows.push({ label: 'الدفع', value: PAYMENT_LABEL[unit.payment] || '—' });
+  return rows;
 }
 
 function coverUrl(unit) {
@@ -252,24 +247,68 @@ function publicUrl(unit, file) {
   return /^https:\/\//i.test(file) ? file : `/units/${unit.code}/${file}`;
 }
 
-export function unitCardView(unit, whatsappUrl, today = new Date()) {
-  const expired = licenceExpired(unit, today);
+function toSpecUnit(unit, today) {
   const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
   const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
   return {
+    ref: unit.code,
+    status: unit.status,
+    sample: unit.sample === true,
+    placeholder: unit._placeholder === true,
+    expired: licenceExpired(unit, today),
+    title: cardTitle(unit),
+    unit_type: typeof unit.type === 'string' ? unit.type.trim() : '',
+    deal: listingTypeOf(unit),
+    district: unit.neighbourhood,
+    city: unit.city,
+    specs: {
+      area_m2: unit.area_m2,
+      bedrooms: unit.rooms,
+      bathrooms: unit.bathrooms,
+      floor: unit.floor,
+      age_years: unit.age_years,
+    },
+    features: unit.features,
+    price: {
+      hidden: unit.price?.hidden === true || unit.price?.amount == null,
+      amount: unit.price?.amount,
+      unit: unit.price?.currency || 'SAR',
+      period: unit.price?.period,
+    },
+    photos: unit.media?.cover ? [unit.media.cover] : [],
+    ad_licence: { number, qr },
+    detailHref: `/units/${unit.code}/`,
+  };
+}
+
+function cardPhotoBase(unit) {
+  const cover = unit.media?.cover;
+  if (typeof cover === 'string' && /^https:\/\//i.test(cover)) return '';
+  return `/units/${unit.code}/`;
+}
+
+export function unitCardView(unit, whatsappUrl, today = new Date()) {
+  const expired = licenceExpired(unit, today);
+  const closed = unit.status === 'sold' || unit.status === 'rented';
+  const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
+  const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
+  const placeholder = unit._placeholder === true || unit.status === 'draft' || expired;
+  return {
     code: unit.code,
-    placeholder: unit._placeholder === true || unit.status === 'draft' || expired,
+    placeholder,
+    closed,
     detailHref: `/units/${unit.code}/`,
     waHref: waHref(whatsappUrl, unit.code),
-    disabledWa: unit.status === 'sold' || unit.status === 'rented' || unit.status === 'draft' || expired || unit._placeholder === true,
+    disabledWa: closed || placeholder,
     coverUrl: coverUrl(unit),
-    alt: unit._placeholder ? `بيانات تجريبية للوحدة ${unit.code}` : `صورة الوحدة ${unit.code}`,
+    alt: cardTitle(unit),
     status: unit.status,
-    statusLabel: STATUS_LABEL[unit.status],
+    statusLabel: STATUS_LABEL[unit.status] || unit.status,
+    dealLabel: dealLabel(listingTypeOf(unit)),
     title: cardTitle(unit),
     specs: specRows(unit),
     price: priceView(unit),
-    license: number && qr ? { number, qrUrl: qr, alt: `رمز QR لرخصة الإعلان ${number}` } : null,
+    license: number && qr ? { number, qrUrl: qr, alt: `رمز QR لترخيص الإعلان ${number}` } : null,
   };
 }
 
@@ -359,7 +398,7 @@ const INDEX_DESCRIPTION = 'الوحدات المنشورة لدى مكتب ال�
 function renderIndex(units, ctx) {
   const today = ctx.today || new Date();
   const showFlag = units.some((unit) => !isPublic(unit, today) || unit._placeholder === true);
-  const cards = units.map((unit) => renderListingCard(unitCardView(unit, ctx.site.whatsapp.url, today), esc)).join('\n');
+  const cards = units.map((unit) => renderListingCard(toSpecUnit(unit, today), { whatsapp: ctx.site.whatsapp.url }, { photoBase: cardPhotoBase(unit) })).join('\n');
   const list = units.length
     ? `<div class="rt-listing-grid">\n${cards}\n</div>`
     : `<div class="units-empty">
@@ -406,7 +445,7 @@ function detailLicense(view) {
   return `<div class="unit-license">
           <img src="${esc(view.license.qrUrl)}" alt="${esc(view.license.alt)}" width="128" height="128" loading="lazy" decoding="async">
           <div>
-            <p class="lbl">رخصة الإعلان</p>
+            <p class="lbl">ترخيص الإعلان</p>
             <p class="ltr">${esc(view.license.number)}</p>
           </div>
         </div>`;
@@ -427,15 +466,16 @@ function renderDetail(unit, ctx) {
     ? esc(view.price.text)
     : `<span class="ltr">${esc(view.price.amount)}</span> ${esc(view.price.currency)}`;
   const showFlag = view.placeholder;
+  const ctaLabel = view.closed ? closedCtaLabel(unit.status) : 'تواصل عبر واتساب';
   const waButton = view.disabledWa
-    ? `<span class="btn btn-gold btn-disabled" aria-disabled="true">${ICON_CHAT}تواصل عبر واتساب</span>`
-    : `<a class="btn btn-gold" href="${esc(view.waHref)}">${ICON_CHAT}تواصل عبر واتساب</a>`;
+    ? `<span class="btn btn-gold btn-disabled" aria-disabled="true">${ICON_CHAT}${esc(ctaLabel)}</span>`
+    : `<a class="btn btn-gold" href="${esc(view.waHref)}" target="_blank" rel="noopener">${ICON_CHAT}${esc(ctaLabel)}</a>`;
   const origin = ctx.site.origin;
   const url = `${origin}/units/${unit.code}/`;
   const title = unit.seo?.title?.trim() || `وحدة ${unit.code} | ${ctx.site.name.ar}`;
   const description = unit.seo?.description?.trim() || PLACEHOLDER_FLAG;
   const ogImage = /^https:\/\//i.test(view.coverUrl) ? view.coverUrl : `${origin}${view.coverUrl}`;
-  const offer = view.price.hidden ? null : {
+  const offer = view.price.hidden || !isPublic(unit, ctx.today) ? null : {
     '@type': 'Offer',
     priceCurrency: 'SAR',
     price: unit.price.amount,
@@ -470,13 +510,14 @@ function renderDetail(unit, ctx) {
   </section>
   <section>
     <div class="wrap">
-${flagHtml([unit], ctx.today)}      <div class="unit-layout">
+${flagHtml([unit], ctx.today)}      <div class="unit-layout${view.closed ? ' unit-layout--closed' : ''}">
         <div class="unit-gallery">
           <img src="${esc(view.coverUrl)}" alt="${esc(view.alt)}" width="1280" height="800" fetchpriority="high" decoding="async">
           ${thumbs ? `<div class="unit-gallery__rest">\n${thumbs}\n          </div>` : ''}
         </div>
         <div class="unit-buy">
-          <p class="unit-price">${price}</p>
+          <p class="unit-price${view.closed ? ' unit-price--closed' : ''}">${price}</p>
+          <p class="unit-deal">${esc(view.dealLabel)}</p>
           <p class="unit-status unit-status--${esc(unit.status)}">${esc(view.statusLabel)}</p>
           ${waButton}
           ${detailLicense(view)}

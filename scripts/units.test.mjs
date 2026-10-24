@@ -163,11 +163,17 @@ test('draft units are not rendered unless previewing, and the card link is byte-
   const detail = readFileSync(join(publicDir, 'units/RT-001/index.html'), 'utf8');
   const href = waHref(site.whatsapp.url, 'RT-001');
   assert.ok(index.includes('rt-listing-card.css'));
-  assert.ok(index.includes('class="rt-listing-card'));
+  assert.ok(index.includes('class="rt-card rt-listing'));
+  assert.ok(index.includes('rt-card--draft'));
+  assert.ok(index.includes('مسودة'));
+  assert.ok(index.includes('للبيع'));
   assert.ok(index.includes('بيانات تجريبية'));
   assert.ok(index.includes('لا توجد رخصة إعلان'));
   assert.ok(index.includes('aria-disabled="true"'));
   assert.equal(index.includes(href), false);
+  const article = index.slice(index.indexOf('<article'), index.indexOf('</article>'));
+  assert.equal(article.includes('أبها'), false);
+  assert.equal(article.includes('rt-card-loc'), false);
   assert.ok(detail.includes('بيانات تجريبية'));
   assert.ok(detail.includes('لا توجد رخصة إعلان'));
   assert.ok(detail.includes('noindex'));
@@ -187,7 +193,10 @@ test('published card escapes text and shows the SAR amount', () => {
   assert.equal(html.includes('<script>'), false);
   assert.ok(html.includes('850,000'));
   assert.ok(html.includes('ر.س'));
+  assert.ok(html.includes('للبيع'));
+  assert.ok(html.includes('ترخيص الإعلان'));
   assert.ok(html.includes(`href="${waHref(site.whatsapp.url, 'RT-002')}"`));
+  assert.ok(html.includes('target="_blank"'));
   assert.ok(html.includes('7200000001'));
   assert.ok(html.includes('/units/RT-002/license-qr.png'));
   assert.ok(detail.includes('7200000001'));
@@ -225,9 +234,11 @@ test('sold and rented cards name the closed state and disable WhatsApp', () => {
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
   assert.ok(html.includes('تم البيع'));
   assert.ok(html.includes('تم التأجير'));
-  assert.ok(html.includes('rt-listing-card--sold'));
-  assert.ok(html.includes('rt-listing-card--rented'));
-  assert.ok(html.includes('rt-btn--disabled'));
+  assert.ok(html.includes('مباع'));
+  assert.ok(html.includes('مؤجّر'));
+  assert.ok(html.includes('rt-card--closed'));
+  assert.ok(html.includes('aria-disabled="true"'));
+  assert.equal(html.includes('rt-btn--disabled'), false);
   assert.equal(html.includes('جيتكم من الموقع'), false);
   const detail = readFileSync(join(publicDir, 'units/RT-003/index.html'), 'utf8');
   assert.ok(detail.includes('تم البيع'));
@@ -236,18 +247,54 @@ test('sold and rented cards name the closed state and disable WhatsApp', () => {
   assert.equal(publishedUnits([base({ ad_license_expiry: '2026-10-24' })], today).length, 1);
 });
 
-test('the checked-in sample stays a draft placeholder', () => {
+test('listing_type defaults to sale and only accepts sale or rent', () => {
+  const { publicDir } = fixture([base(), base({ code: 'RT-008', listing_type: 'rent' })]);
+  assert.match(errorsOf([base({ listing_type: 'lease' })], publicDir), /bad listing_type/);
+  const { units } = validateUnits({ updated: '2026-10-24', units: [base(), base({ code: 'RT-008', listing_type: 'rent' })] }, { publicDir });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units });
+  const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
+  const sale = html.slice(html.indexOf('data-ref="RT-002"'), html.indexOf('data-ref="RT-008"'));
+  const rent = html.slice(html.indexOf('data-ref="RT-008"'), html.indexOf('</article>', html.indexOf('data-ref="RT-008"')));
+  assert.ok(sale.includes('للبيع'));
+  assert.equal(sale.includes('للإيجار'), false);
+  assert.ok(rent.includes('للإيجار'));
+  assert.equal(rent.includes('status="rented"'), false);
+});
+
+test('the checked-in sample stays a draft sale at the full riyal price', () => {
   const doc = readUnitsDocument(root, join(root, 'public'));
-  assert.equal(doc.units[0].code, 'RT-001');
-  assert.equal(doc.units[0].status, 'draft');
-  assert.equal(doc.units[0]._placeholder, true);
+  const unit = doc.units[0];
+  assert.equal(unit.code, 'RT-001');
+  assert.equal(unit.status, 'draft');
+  assert.equal(unit._placeholder, true);
+  assert.equal(unit.listing_type, 'sale');
+  assert.equal(unit.status === 'rented', false);
   assert.deepEqual(publishedUnits(doc.units), []);
   for (const key of ['type', 'area_m2', 'rooms', 'bathrooms', 'floor', 'neighbourhood', 'city', 'payment']) {
-    assert.equal(doc.units[0][key], null);
+    assert.equal(unit[key], null);
   }
-  assert.equal(doc.units[0].price.hidden, true);
-  assert.equal(doc.units[0].price.amount, null);
-  assert.equal(doc.units[0].ad_license_number, undefined);
-  assert.equal(doc.units[0].ad_license_expiry, undefined);
-  assert.equal(doc.units[0].ad_license_qr, undefined);
+  assert.equal(unit.price.hidden, false);
+  assert.equal(unit.price.amount, 430000);
+  assert.equal(unit.price.currency, 'SAR');
+  assert.equal(unit.ad_license_number, undefined);
+  assert.equal(unit.ad_license_expiry, undefined);
+  assert.equal(unit.ad_license_qr, undefined);
+
+  const { publicDir } = fixture([unit]);
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: [unit], preview: true });
+  const index = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
+  const article = index.slice(index.indexOf('<article'), index.indexOf('</article>'));
+  const detail = readFileSync(join(publicDir, 'units/RT-001/index.html'), 'utf8');
+  assert.ok(article.includes('430,000'));
+  assert.equal(article.includes('430 ألف'), false);
+  assert.equal(article.includes('430.000'), false);
+  assert.ok(article.includes('للبيع'));
+  assert.equal(article.includes('أبها'), false);
+  assert.equal(article.includes('rt-card-loc'), false);
+  assert.ok(article.includes('لا توجد رخصة إعلان'));
+  assert.equal(article.includes(waHref(site.whatsapp.url, 'RT-001')), false);
+  assert.ok(detail.includes('430,000'));
+  assert.ok(detail.includes('class="unit-deal">للبيع'));
+  assert.equal(detail.includes('>أبها<'), false);
+  assert.equal(detail.includes('<dt>الموقع</dt>'), false);
 });

@@ -5,6 +5,7 @@
       "code": "RT-001",
       "_placeholder": true,
       "status": "draft",
+      "listing_type": "sale",
       "updated": "2026-10-24",
       "type": null,
       "area_m2": null,
@@ -14,10 +15,10 @@
       "neighbourhood": null,
       "city": null,
       "payment": null,
-      "price": { "hidden": true, "amount": null, "currency": "SAR" },
+      "price": { "hidden": false, "amount": 430000, "currency": "SAR" },
       "seo": {
         "title": "وحدة RT-001 | بيانات تجريبية",
-        "description": "بيانات تجريبية غير منشورة للوحدة RT-001. المواصفات والسعر غير معتمدة."
+        "description": "بيانات تجريبية غير منشورة للوحدة RT-001. للبيع بسعر 430,000 ر.س. الموقع ورخصة الإعلان غير مكتملين."
       },
       "media": {
         "cover": "cover.jpg",
