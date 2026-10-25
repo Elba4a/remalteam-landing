@@ -9,7 +9,7 @@
   "google_business_profile_url": "https://share.google/unhDKuhvJ6BEsEQKQ",
   "snapchat": { "handle": "@remalteam", "url": "https://www.snapchat.com/@remalteam" },
   "tiktok": { "handle": "@remalteam", "url": "https://www.tiktok.com/@remalteam" },
-  "address": { "street": "شارع ذو الحليفة، حي المحالة", "locality": "أبها", "postal_code": "62564", "region": "منطقة عسير", "country": "SA" },
+  "address": { "street": "شارع ذو الحليفة", "locality": "أبها", "postal_code": "62564", "region": "منطقة عسير", "country": "SA" },
   "geo": { "latitude": 18.2820398, "longitude": 42.5961416 },
   "opening_hours": [
     { "days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"], "opens": "09:00", "closes": "17:00" },
