@@ -4,6 +4,7 @@
 // public/index.html, 404.html, sitemap.xml and llms.txt. Office data lives only in content/site.json.
 // Usage: node scripts/build-pages.mjs   (no dependencies)
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -226,3 +227,9 @@ writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})
 ${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}`);
 
 console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), index.html blocks, 404.html, sitemap.xml (${live.length + 1} urls), llms.txt`);
+
+// Retired /rent URLs are redirected in worker.js (run_worker_first skips public/_redirects).
+const redirectCheck = spawnSync(process.execPath, ['--test', join(root, 'scripts/rent-redirect.test.mjs')], { stdio: 'inherit' });
+if (redirectCheck.status !== 0) {
+  throw new Error('rent redirect check failed');
+}
