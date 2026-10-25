@@ -4,6 +4,7 @@
 // public/index.html, 404.html, sitemap.xml and llms.txt. Office data lives only in content/site.json.
 // Usage: node scripts/build-pages.mjs   (no dependencies)
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readUnitsDocument, buildUnitPages, publishedUnits } from './units-lib.mjs';
@@ -252,3 +253,9 @@ ${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}
 ${unitsLive.map((u) => `- [${u.code}](${site.origin}/units/${u.code}/): ${u.seo.description}\n`).join('')}`);
 
 console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), ${builtUnits.published.length} published unit(s)${previewDrafts ? `, previewing ${builtUnits.visible.length}` : ''}, index.html blocks, 404.html, sitemap.xml (${live.length + 2 + unitsLive.length} urls), llms.txt`);
+
+// Retired /rent URLs are redirected in worker.js (run_worker_first skips public/_redirects).
+const redirectCheck = spawnSync(process.execPath, ['--test', join(root, 'scripts/rent-redirect.test.mjs')], { stdio: 'inherit' });
+if (redirectCheck.status !== 0) {
+  throw new Error('rent redirect check failed');
+}
