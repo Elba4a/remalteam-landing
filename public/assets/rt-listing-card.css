@@ -1,0 +1,60 @@
+/* Al-Remal website listing card. Extends DS v2 .rt-card (components.css) over tokens.css.
+   New classes are additive: rt-listing, rt-card-meta, rt-card-legal, rt-card-tag, rt-card-features, state modifiers. */
+.rt-listing-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--space-5)}
+.rt-card{display:flex;flex-direction:column;background:var(--surface-raised);border:1px solid var(--line);border-radius:var(--radius-md);overflow:hidden;box-shadow:var(--shadow-1);transition:box-shadow 160ms ease;min-width:0;font-family:var(--font-body);color:var(--ink)}
+.rt-card:hover{box-shadow:var(--shadow-2)}
+.rt-card:focus-within{outline:2px solid var(--focus);outline-offset:2px}
+.rt-card-media{position:relative;aspect-ratio:4/3;background:var(--surface-sand);overflow:hidden}
+.rt-card-media img{width:100%;height:100%;object-fit:cover;display:block}
+.rt-card-media .rt-badge{position:absolute;inset-block-start:var(--space-3);inset-inline-start:var(--space-3)}
+.rt-card-media .rt-card-tag{position:absolute;inset-block-start:var(--space-3);inset-inline-end:var(--space-3)}
+.rt-card-ph{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:var(--space-1);text-align:center;color:var(--ink-muted);font-size:13px;line-height:20px;padding:var(--space-4)}
+.rt-card-ph b{font-family:var(--font-display-ar);font-size:16px;font-weight:600;color:var(--earth)}
+.rt-waves{position:absolute;inset:auto 0 0 0;width:100%;height:55%}
+.rt-waves path{fill:none;stroke:var(--stone);stroke-width:1.5;opacity:.55}
+.rt-card-tag{display:inline-flex;align-items:center;height:24px;padding-inline:var(--space-2);border-radius:var(--radius-sm);font-size:12px;font-weight:600;background:var(--gold);color:var(--on-gold)}
+.rt-card-tag--draft{background:var(--danger-soft);color:var(--danger)}
+.rt-card-body{display:grid;gap:var(--space-2);padding:var(--space-4) var(--space-5) var(--space-5)}
+.rt-card-type{font-size:12px;line-height:18px;font-weight:600;color:var(--gold-text)}
+.rt-card-title{margin:0;font-family:var(--font-display-ar);font-size:22px;line-height:32px;font-weight:600;color:var(--ink);text-wrap:balance}
+.rt-card-loc{display:flex;align-items:center;gap:var(--space-1);font-size:14px;line-height:24px;color:var(--ink-muted)}
+.rt-card-specs{display:flex;flex-wrap:wrap;gap:var(--space-2) var(--space-5);padding-block:var(--space-3);margin-block:var(--space-1);border-block:1px solid var(--line);list-style:none;padding-inline:0;margin-inline:0}
+.rt-card-specs li{display:inline-flex;align-items:center;gap:var(--space-2);font-family:var(--font-figures);font-size:15px;line-height:20px;font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums}
+.rt-card-specs .rt-icon{width:18px;height:18px;color:var(--ink-muted)}
+.rt-card-features{display:flex;flex-wrap:wrap;gap:var(--space-1) var(--space-2);list-style:none;margin:0;padding:0;font-size:13px;line-height:20px;color:var(--ink-muted)}
+.rt-card-features li{border:1px solid var(--line);border-radius:var(--radius-sm);padding:1px var(--space-2);background:var(--surface);color:var(--ink)}
+.rt-card-foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);flex-wrap:wrap;margin-top:var(--space-1)}
+.rt-price{font-family:var(--font-figures);font-size:26px;line-height:32px;font-weight:600;color:var(--gold-text)}
+.rt-price small{font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--ink-muted);margin-inline-start:var(--space-1)}
+.rt-btn{font-family:var(--font-body);font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2);border:1px solid transparent;border-radius:var(--radius-sm);text-decoration:none;white-space:nowrap;height:44px;padding-inline:var(--space-5);font-size:15px;transition:background-color 120ms ease}
+.rt-btn .rt-icon{width:18px;height:18px}
+.rt-btn-primary{background:var(--gold);color:var(--on-gold)}
+.rt-btn-primary:hover{background:var(--gold-hover)}
+.rt-btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.rt-btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.rt-card-legal{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--space-1) var(--space-3);font-size:12px;line-height:18px;color:var(--ink-muted);border-top:1px solid var(--line);padding-top:var(--space-2)}
+.rt-listing .rt-num{white-space:nowrap}
+.rt-card-legal .rt-num{font-family:var(--font-figures);font-weight:500}
+.ph{display:inline-block;border:1px dashed currentColor;border-radius:var(--radius-sm);padding:0 4px;font-size:.85em;font-family:var(--font-body);font-weight:500;color:var(--ink-muted)}
+/* states */
+.rt-card--closed .rt-card-media img{opacity:.6}
+.rt-card--closed .rt-price{color:var(--ink-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.rt-card--draft{border-style:dashed;border-color:var(--line-strong)}
+@media (max-width:480px){.rt-card-body{padding:var(--space-4)}.rt-btn{width:100%}}
+
+/* This repo has no DS components/bundle.css. The rules below are the primitives that file
+   would have provided: badges, icon size, LTR numbers, the detail link, and the licence QR.
+   Token names stay the DS v2 names; values live on :root in pages.css. */
+.rt-num{direction:ltr;unicode-bidi:isolate}
+.rt-icon{width:18px;height:18px;flex:none;display:inline-block}
+.rt-card-foot > .rt-price,.rt-card-foot > .rt-btn{flex-shrink:0}
+@media (max-width:480px){.rt-card-foot{flex-direction:column;align-items:stretch}}
+.rt-badge{display:inline-flex;align-items:center;height:24px;padding-inline:var(--space-2);border-radius:var(--radius-sm);font-size:12px;line-height:18px;font-weight:600;background:var(--success-soft);color:var(--success)}
+.rt-badge--reserved{background:var(--warning-soft);color:var(--warning)}
+.rt-badge--sold{background:var(--danger-soft);color:var(--danger)}
+.rt-badge--new{background:var(--gold-soft);color:var(--gold-text)}
+.rt-badge--offplan{background:var(--surface-sand);color:var(--ink)}
+.rt-card-media > a{position:absolute;inset:0;color:inherit;text-decoration:none}
+.rt-card-title a{color:inherit;text-decoration:none}
+.rt-card-loc .rt-icon{color:var(--ink-muted)}
+.rt-card-legal img{width:72px;height:72px;object-fit:contain;flex:none;background:var(--surface-raised);border:1px solid var(--line);border-radius:var(--radius-sm)}

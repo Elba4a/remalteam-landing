@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="pin" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/>
+    <circle cx="12" cy="10" r="2.2" fill="none" stroke="currentColor" stroke-width="1.75"/>
+  </symbol>
+  <symbol id="area" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+  </symbol>
+  <symbol id="bed" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M3 18v-5a3 3 0 0 1 3-3h12a3 3 0 0 1 3 3v5M3 14h18M6 10V7.5A1.5 1.5 0 0 1 7.5 6h3A1.5 1.5 0 0 1 12 7.5V10"/>
+  </symbol>
+  <symbol id="bath" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M5 12h14a2 2 0 0 1 2 2v1a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-1a2 2 0 0 1 2-2zM7 12V7a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2M8 19l-1 2M16 19l1 2"/>
+  </symbol>
+  <symbol id="building" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M5 21V4h9v17M14 9h5v12M8 8h3M8 12h3M8 16h3M17 13h1M17 17h1"/>
+  </symbol>
+  <symbol id="calendar" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M5 6h14v14H5zM5 10h14M8 4v4M16 4v4"/>
+  </symbol>
+  <symbol id="chat" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M5 6h14v9H9l-4 3.5zM8 9.5h8M8 12.5h5"/>
+  </symbol>
+  <symbol id="doc" viewBox="0 0 24 24">
+    <path fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" d="M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h6"/>
+  </symbol>
+</svg>

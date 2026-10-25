@@ -5,7 +5,17 @@
   --ink: #1c1d21; --ink-muted: #5f5952;
   --night: #1c1d21; --on-night: #f7f4ef; --on-night-muted: #b9b2a6;
   --gold: #c8a46b; --gold-hover: #b8935a; --on-gold: #1c1d21; --gold-text: #7a5b28; --gold-soft: #f1e6d2;
-  --stone: #8a857d; --focus: #7a5b28;
+  --earth: #49443f; --stone: #8a857d; --focus: #7a5b28;
+  --success: #1f6672; --success-soft: #e1eef0;
+  --warning: #8f5410; --warning-soft: #f6e8d6;
+  --danger: #a0352a; --danger-soft: #f6e1dd;
+  --shadow-1: 0 1px 2px rgba(28,29,33,.06), 0 2px 8px rgba(28,29,33,.05);
+  --shadow-2: 0 8px 24px rgba(73,68,63,.14);
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px;
+  --radius-sm: 2px; --radius-md: 4px;
+  --font-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+  --font-display-ar: "Alexandria", "IBM Plex Sans Arabic", sans-serif;
+  --font-figures: "Barlow Semi Condensed", "IBM Plex Sans Arabic", sans-serif;
   --f-display: "Barlow Condensed", "Alexandria", "Arial Narrow", sans-serif;
   --f-latin: "Barlow Condensed", "Arial Narrow", sans-serif;
   --f-body: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
@@ -29,6 +39,7 @@ p.en { direction: rtl; }
 .skip:focus { top: 8px; }
 
 .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 12px 20px; border-radius: 2px; font: 600 15px/20px var(--f-body); text-decoration: none; border: 1px solid transparent; transition: background-color .2s; }
+.btn-disabled { opacity: .45; pointer-events: none; cursor: not-allowed; }
 .btn svg { width: 20px; height: 20px; flex: none; }
 .btn-gold { background: var(--gold); color: var(--on-gold); }
 .btn-gold:hover { background: var(--gold-hover); }
@@ -90,3 +101,42 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
 .calc-out output { display: block; font: 600 32px/44px var(--f-fig); color: var(--gold); margin: 0 0 16px; }
 .calc-out .calc-note { font-size: 14px; line-height: 24px; margin: 8px 0 20px; }
 .calc-out .calc-note strong { color: var(--on-night); }
+
+/* Unit detail and listings chrome. Card visuals are only in rt-listing-card.css. */
+.unit-flag { margin: 0 0 24px; padding: 12px 16px; background: var(--gold-soft); color: var(--ink); border-inline-start: 3px solid var(--gold); font-weight: 600; }
+.units-empty { background: var(--surface-raised); border: 1px solid var(--line); border-radius: 4px; padding: 24px; }
+.units-empty h2 { font-size: 28px; line-height: 40px; }
+.units-empty p { margin: 0 0 20px; color: var(--ink-muted); }
+.unit-layout { display: grid; gap: 24px; }
+.unit-gallery { min-width: 0; }
+.unit-gallery img { width: 100%; height: auto; background: var(--surface-sand); }
+.unit-gallery__rest { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.unit-buy { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+.unit-price { margin: 0; font: 600 32px/44px var(--f-fig); color: var(--ink); }
+.unit-price--closed { color: var(--ink-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.unit-deal { margin: 0; display: inline-flex; align-items: center; height: 24px; padding-inline: 8px; border-radius: 2px; background: var(--gold); color: var(--on-gold); font: 600 12px/18px var(--f-body); }
+.unit-status { margin: 0; padding: 2px 8px; border-radius: 2px; background: var(--gold-soft); color: var(--gold-text); font: 600 13px/20px var(--f-body); }
+.unit-status--available { background: var(--success-soft); color: var(--success); }
+.unit-status--reserved { background: var(--warning-soft); color: var(--warning); }
+.unit-status--sold { background: var(--danger-soft); color: var(--danger); }
+.unit-layout--closed .unit-gallery img { opacity: .6; }
+.unit-specs { display: grid; margin: 0; }
+.unit-specs div { display: grid; grid-template-columns: 7.5rem 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.unit-specs dt { margin: 0; color: var(--ink-muted); }
+.unit-specs dd { margin: 0; }
+.unit-video video { width: 100%; height: auto; background: var(--night); }
+.unit-license { display: flex; align-items: center; gap: 16px; margin: 0; }
+.unit-license img { width: 96px; height: 96px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 2px; }
+.unit-license p { margin: 0; }
+.unit-license .lbl { color: var(--ink-muted); font-size: 13px; line-height: 20px; }
+.unit-license--missing { color: var(--gold-text); font-weight: 600; }
+@media (min-width: 768px) {
+  .unit-gallery__rest { grid-template-columns: 1fr 1fr 1fr; }
+}
+@media (min-width: 900px) {
+  .unit-layout { grid-template-columns: 1.35fr .65fr; align-items: start; }
+  .unit-gallery { grid-column: 1; grid-row: 1; }
+  .unit-video { grid-column: 1; grid-row: 2; }
+  .unit-buy { grid-column: 2; grid-row: 1; }
+  .unit-specs { grid-column: 2; grid-row: 2; }
+}
