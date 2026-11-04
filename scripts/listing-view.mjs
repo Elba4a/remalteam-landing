@@ -75,7 +75,7 @@ function countPhrase(n, singular, plural) {
  */
 export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}) {
   const number = typeof unit.ad_licence?.number === 'string' ? unit.ad_licence.number.trim() : '';
-  const draft = unit.status === 'draft' || unit.placeholder === true || unit.expired === true || !number;
+  const draft = unit.status === 'draft' || unit.placeholder === true || unit.expired === true || unit.pending === true || !number;
   const closed = unit.status === 'sold';
   const showDashes = draft;
   const specs = unit.specs || {};

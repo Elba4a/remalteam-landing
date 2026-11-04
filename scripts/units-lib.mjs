@@ -34,8 +34,17 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>';
 
+const blank = (value) => value == null || (typeof value === 'string' && value.trim() === '');
+
+// REGA: a unit goes public only with all three licence fields. A non-draft unit
+// whose expiry or QR is still empty is "licence pending": it stays hidden and the
+// build does not fail. Filled-but-invalid values still fail the build.
+export function licencePending(unit) {
+  return unit.status !== 'draft' && (blank(unit.ad_license_expiry) || blank(unit.ad_license_qr));
+}
+
 export function isPublic(unit, today = new Date()) {
-  return unit.status !== 'draft' && !licenceExpired(unit, today);
+  return unit.status !== 'draft' && !licencePending(unit) && !licenceExpired(unit, today);
 }
 
 export function publishedUnits(units, today = new Date()) {
@@ -126,7 +135,10 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
 
     const media = unit.media;
     if (!media || typeof media !== 'object') errors.push(`${label}: bad media path (media)`);
-    else {
+    else if (media.logo != null) {
+      if (media.logo !== true) errors.push(`${label}: media.logo must be true`);
+      if (media.cover != null || media.photos != null || media.video != null) errors.push(`${label}: media.logo cannot be combined with photos`);
+    } else {
       const cover = mediaRef(label, media.cover, publicDir, errors, 'cover');
       if (cover && cover.kind === 'local' && !IMAGE_RE.test(media.cover)) errors.push(`${label}: bad media path (cover)`);
       const photos = media.photos == null ? [media.cover] : media.photos;
@@ -156,25 +168,26 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
     if (publishing) {
       if (unit._placeholder === true) errors.push(`${label}: placeholder units must stay status draft`);
       requireText(unit, 'type', errors);
-      if (typeof unit.area_m2 !== 'number' || !Number.isFinite(unit.area_m2) || unit.area_m2 <= 0) errors.push(`${label}: missing area_m2`);
+      // Optional specs: omitted when the manager did not give them, validated when present.
+      if (unit.area_m2 != null && (typeof unit.area_m2 !== 'number' || !Number.isFinite(unit.area_m2) || unit.area_m2 <= 0)) errors.push(`${label}: bad area_m2`);
       for (const key of ['rooms', 'bathrooms']) {
-        if (!Number.isInteger(unit[key]) || unit[key] < 0) errors.push(`${label}: missing ${key}`);
+        if (unit[key] != null && (!Number.isInteger(unit[key]) || unit[key] < 0)) errors.push(`${label}: bad ${key}`);
       }
-      if (unit.floor == null || unit.floor === '') errors.push(`${label}: missing floor`);
-      else if (typeof unit.floor !== 'string' && typeof unit.floor !== 'number') errors.push(`${label}: missing floor`);
-      const neighbourhood = typeof unit.neighbourhood === 'string' ? unit.neighbourhood.trim() : '';
-      const city = typeof unit.city === 'string' ? unit.city.trim() : '';
-      if (!neighbourhood && !city) errors.push(`${label}: missing neighbourhood or city`);
-      if (!PAYMENTS.includes(unit.payment)) errors.push(`${label}: missing payment`);
+      if (unit.floor != null && unit.floor !== '' && typeof unit.floor !== 'string' && typeof unit.floor !== 'number') errors.push(`${label}: bad floor`);
+      for (const key of ['neighbourhood', 'city']) {
+        if (unit[key] != null && typeof unit[key] !== 'string') errors.push(`${label}: bad ${key}`);
+      }
+      if (unit.payment != null && !PAYMENTS.includes(unit.payment)) errors.push(`${label}: bad payment`);
+      if (unit.features != null && (!Array.isArray(unit.features) || unit.features.some((f) => typeof f !== 'string' || !f.trim()))) errors.push(`${label}: bad features`);
       if (!unit.updated || !DATE_RE.test(unit.updated)) errors.push(`${label}: missing updated`);
       if (!unit.seo || typeof unit.seo.title !== 'string' || unit.seo.title.trim() === '') errors.push(`${label}: missing seo.title`);
       if (!unit.seo || typeof unit.seo.description !== 'string' || unit.seo.description.trim() === '') errors.push(`${label}: missing seo.description`);
       const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
       if (!number) errors.push(`${label}: missing ad_license_number`);
       else if (!LICENSE_NUMBER_RE.test(number)) errors.push(`${label}: bad ad_license_number`);
-      if (unit.ad_license_expiry == null || unit.ad_license_expiry === '') errors.push(`${label}: missing ad_license_expiry`);
-      else if (!DATE_RE.test(unit.ad_license_expiry)) errors.push(`${label}: bad ad_license_expiry`);
-      if (unit.ad_license_qr == null || unit.ad_license_qr === '') errors.push(`${label}: missing ad_license_qr`);
+      if (!blank(unit.ad_license_expiry) && (typeof unit.ad_license_expiry !== 'string' || !DATE_RE.test(unit.ad_license_expiry) || Number.isNaN(Date.parse(unit.ad_license_expiry)))) errors.push(`${label}: bad ad_license_expiry`);
+      if (unit.ad_license_qr != null && typeof unit.ad_license_qr !== 'string') errors.push(`${label}: bad ad_license_qr`);
+      if (licencePending(unit)) warnings.push(`${label}: hidden until ad_license_expiry and ad_license_qr are filled`);
     }
 
     if (unit.ad_license_qr != null && unit.ad_license_qr !== '') {
@@ -195,15 +208,28 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
   return { units: data.units, warnings };
 }
 
-export function readUnitsDocument(root, publicDir, today = new Date()) {
-  const data = JSON.parse(readFileSync(join(root, 'content/units.json'), 'utf8'));
-  const { units, warnings } = validateUnits(data, { publicDir, today });
-  return { updated: data.updated, units, warnings };
+// content/units.json plus one file per unit in content/units/<CODE>.json.
+export function readUnitFiles(root) {
+  const dir = join(root, 'content/units');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir).filter((name) => name.endsWith('.json')).sort().map((name) => {
+    let unit;
+    try {
+      unit = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+    } catch (err) {
+      throw new Error(`content/units/${name}: invalid JSON (${err.message})`);
+    }
+    if (!unit || typeof unit !== 'object' || Array.isArray(unit)) throw new Error(`content/units/${name}: expected one unit object`);
+    if (`${unit.code}.json` !== name) throw new Error(`content/units/${name}: file name must match code`);
+    return unit;
+  });
 }
 
-function dash(value) {
-  if (value == null || value === '') return '—';
-  return String(value);
+export function readUnitsDocument(root, publicDir, today = new Date()) {
+  const data = JSON.parse(readFileSync(join(root, 'content/units.json'), 'utf8'));
+  if (data && Array.isArray(data.units)) data.units = [...data.units, ...readUnitFiles(root)];
+  const { units, warnings } = validateUnits(data, { publicDir, today });
+  return { updated: data.updated, units, warnings };
 }
 
 function priceView(unit) {
@@ -220,21 +246,24 @@ function cardTitle(unit) {
 }
 
 function specRows(unit) {
-  const floor = unit.floor == null || unit.floor === '' ? '—' : String(unit.floor);
-  const rows = [
-    { label: 'النوع', value: dash(unit.type) },
-    { label: 'المساحة', value: unit.area_m2 == null ? '—' : formatPriceAmount(unit.area_m2), ltr: unit.area_m2 != null, suffix: unit.area_m2 != null ? ' م²' : '' },
-    { label: 'الغرف', value: unit.rooms == null ? '—' : String(unit.rooms), ltr: unit.rooms != null },
-    { label: 'دورات المياه', value: unit.bathrooms == null ? '—' : String(unit.bathrooms), ltr: unit.bathrooms != null },
-    { label: 'الدور', value: floor, ltr: typeof unit.floor === 'number' },
-  ];
+  // Missing specs are omitted, never shown as dashes or guessed.
+  const rows = [];
+  if (!blank(unit.type)) rows.push({ label: 'النوع', value: String(unit.type) });
+  if (unit.area_m2 != null) rows.push({ label: 'المساحة', value: formatPriceAmount(unit.area_m2), ltr: true, suffix: ' م²' });
+  if (unit.rooms != null) rows.push({ label: 'الغرف', value: String(unit.rooms), ltr: true });
+  if (unit.bathrooms != null) rows.push({ label: 'دورات المياه', value: String(unit.bathrooms), ltr: true });
+  if (!blank(unit.floor)) rows.push({ label: 'الدور', value: String(unit.floor), ltr: typeof unit.floor === 'number' });
   const where = locationLine(unit.neighbourhood, unit.city);
   if (where) rows.push({ label: 'الموقع', value: where });
-  rows.push({ label: 'الدفع', value: PAYMENT_LABEL[unit.payment] || '—' });
+  if (PAYMENT_LABEL[unit.payment]) rows.push({ label: 'الدفع', value: PAYMENT_LABEL[unit.payment] });
+  for (const feature of Array.isArray(unit.features) ? unit.features : []) rows.push({ label: '', value: feature });
   return rows;
 }
 
+export const LOGO_URL = '/assets/logo-ivory.svg';
+
 function coverUrl(unit) {
+  if (unit.media?.logo === true) return LOGO_URL;
   const cover = unit.media.cover;
   return /^https:\/\//i.test(cover) ? cover : `/units/${unit.code}/${cover}`;
 }
@@ -252,6 +281,7 @@ function toSpecUnit(unit, today) {
     sample: unit.sample === true,
     placeholder: unit._placeholder === true,
     expired: licenceExpired(unit, today),
+    pending: licencePending(unit),
     title: cardTitle(unit),
     unit_type: typeof unit.type === 'string' ? unit.type.trim() : '',
     deal: DEAL_LABEL,
@@ -272,6 +302,7 @@ function toSpecUnit(unit, today) {
       period: unit.price?.period,
     },
     photos: unit.media?.cover ? [unit.media.cover] : [],
+    logo: unit.media?.logo === true,
     ad_licence: { number, qr },
     detailHref: `/units/${unit.code}/`,
   };
@@ -288,7 +319,7 @@ export function unitCardView(unit, whatsappUrl, today = new Date()) {
   const closed = unit.status === 'sold';
   const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
   const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
-  const placeholder = unit._placeholder === true || unit.status === 'draft' || expired;
+  const placeholder = unit._placeholder === true || unit.status === 'draft' || expired || licencePending(unit);
   return {
     code: unit.code,
     placeholder,
@@ -449,14 +480,14 @@ function detailLicense(view) {
 
 function renderDetail(unit, ctx) {
   const view = unitCardView(unit, ctx.site.whatsapp.url, ctx.today);
-  const photos = (unit.media.photos?.length ? unit.media.photos : [unit.media.cover]).filter((photo) => photo !== unit.media.cover);
+  const photos = unit.media.logo ? [] : (unit.media.photos?.length ? unit.media.photos : [unit.media.cover]).filter((photo) => photo !== unit.media.cover);
   const thumbs = photos.map((photo) => `        <img src="${esc(publicUrl(unit, photo))}" alt="${esc(view.alt)}" width="1280" height="800" loading="lazy" decoding="async">`).join('\n');
   const video = unit.media.video
     ? `      <div class="unit-video"><video controls playsinline preload="metadata" poster="${esc(publicUrl(unit, unit.media.poster))}"><source src="${esc(publicUrl(unit, unit.media.video))}" type="video/mp4"></video></div>`
     : '';
   const specs = view.specs.map((spec) => {
     const value = spec.ltr ? `<span class="ltr">${esc(spec.value)}</span>${spec.suffix ? esc(spec.suffix) : ''}` : esc(spec.value);
-    return `        <div><dt>${esc(spec.label)}</dt><dd>${value}</dd></div>`;
+    return spec.label ? `        <div><dt>${esc(spec.label)}</dt><dd>${value}</dd></div>` : `        <div class="unit-specs__feature"><dd>${value}</dd></div>`;
   }).join('\n');
   const price = view.price.hidden
     ? esc(view.price.text)
@@ -470,7 +501,7 @@ function renderDetail(unit, ctx) {
   const url = `${origin}/units/${unit.code}/`;
   const title = unit.seo?.title?.trim() || `وحدة ${unit.code} | ${ctx.site.name.ar}`;
   const description = unit.seo?.description?.trim() || PLACEHOLDER_FLAG;
-  const ogImage = /^https:\/\//i.test(view.coverUrl) ? view.coverUrl : `${origin}${view.coverUrl}`;
+  const ogImage = unit.media.logo ? `${origin}/assets/og.png` : /^https:\/\//i.test(view.coverUrl) ? view.coverUrl : `${origin}${view.coverUrl}`;
   const offer = view.price.hidden || !isPublic(unit, ctx.today) ? null : {
     '@type': 'Offer',
     priceCurrency: 'SAR',
@@ -508,7 +539,7 @@ function renderDetail(unit, ctx) {
     <div class="wrap">
 ${flagHtml([unit], ctx.today)}      <div class="unit-layout${view.closed ? ' unit-layout--closed' : ''}">
         <div class="unit-gallery">
-          <img src="${esc(view.coverUrl)}" alt="${esc(view.alt)}" width="1280" height="800" fetchpriority="high" decoding="async">
+          ${unit.media.logo ? `<div class="unit-logo-card"><img src="${esc(view.coverUrl)}" alt="الرمال تيم" width="220" height="80" decoding="async"><span class="ltr">${esc(unit.code)}</span></div>` : `<img src="${esc(view.coverUrl)}" alt="${esc(view.alt)}" width="1280" height="800" fetchpriority="high" decoding="async">`}
           ${thumbs ? `<div class="unit-gallery__rest">\n${thumbs}\n          </div>` : ''}
         </div>
         <div class="unit-buy">
@@ -555,4 +586,29 @@ export function buildUnitPages({ publicDir, site, office, legal, pageLinks, unit
     writeFileSync(join(dir, unit.code, 'index.html'), renderDetail(unit, ctx));
   }
   return { visible, published: publishedUnits(units, today) };
+}
+
+// Home page section under the hero. Only units that pass the REGA check
+// (number + expiry + QR, not expired) are listed; with none, both the section
+// and the hero button render as empty strings, so nothing shows.
+export function renderHomeUnits(units, { whatsapp, today = new Date() }) {
+  const live = publishedUnits(units, today);
+  if (!live.length) return { section: '', cta: '' };
+  const cards = live.map((unit) => renderListingCard(toSpecUnit(unit, today), { whatsapp }, { photoBase: cardPhotoBase(unit) })).join('\n');
+  const section = `  <link rel="stylesheet" href="/assets/rt-listing-card.css">
+  <section id="units" class="home-units" aria-labelledby="units-title">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="kicker">الوحدات المتاحة</p>
+        <h2 id="units-title">وحدات متاحة للبيع الآن</h2>
+        <p class="en">Available units</p>
+      </div>
+      <div class="rt-listing-grid">
+${cards}
+      </div>
+      <p class="home-units__more"><a class="btn btn-ghost" href="/units/">كل الوحدات</a></p>
+    </div>
+  </section>`;
+  const cta = '<a class="btn btn-ghost" href="#units">شوف الوحدات المتاحة</a>';
+  return { section, cta };
 }

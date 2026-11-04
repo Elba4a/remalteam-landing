@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readUnitsDocument, buildUnitPages, publishedUnits } from './units-lib.mjs';
+import { readUnitsDocument, buildUnitPages, publishedUnits, renderHomeUnits } from './units-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pub = join(root, 'public');
@@ -200,12 +200,16 @@ const builtUnits = buildUnitPages({
   preview: previewDrafts,
 });
 
+const homeUnits = renderHomeUnits(unitsDoc.units, { whatsapp: site.whatsapp.url });
+
 // Home page: hand-written, except the blocks between <!-- build:NAME --> and <!-- /build:NAME -->.
 const blocks = {
   schema: schema([{ ...office, url: url() }, { '@type': 'WebSite', '@id': `${site.origin}/#site`, url: url(), name: site.name.ar, inLanguage: 'ar', publisher: { '@id': office['@id'] } }]),
   'home-links': pageLinks('page-links reveal'),
   'foot-links': pageLinks('page-links'),
   legal,
+  units: homeUnits.section,
+  'units-cta': homeUnits.cta,
 };
 let home = readFileSync(join(pub, 'index.html'), 'utf8');
 for (const [name, html] of Object.entries(blocks)) {

@@ -10,6 +10,7 @@ import {
   buildUnitPages,
   publishedUnits,
   readUnitsDocument,
+  renderHomeUnits,
   validateUnits,
   waHref,
   waMessage,
@@ -207,10 +208,14 @@ test('published card escapes text and shows the SAR amount', () => {
 test('a non-draft unit missing a REGA licence fails, and an expired licence is withheld with a warning', () => {
   const today = new Date('2026-10-24T12:00:00+03:00');
   const { publicDir } = fixture([base()]);
-  for (const key of ['ad_license_number', 'ad_license_expiry', 'ad_license_qr']) {
-    const unit = base();
-    delete unit[key];
-    assert.match(errorsOf([unit], publicDir), new RegExp(key));
+  const noNumber = base();
+  delete noNumber.ad_license_number;
+  assert.match(errorsOf([noNumber], publicDir), /missing ad_license_number/);
+  // Expiry or QR still empty: licence pending, hidden, build does not fail.
+  for (const key of ['ad_license_expiry', 'ad_license_qr']) {
+    const unit = base({ [key]: '' });
+    assert.equal(errorsOf([unit], publicDir), '');
+    assert.deepEqual(publishedUnits([unit], today), []);
   }
   const expired = base({ code: 'RT-009', ad_license_expiry: '2026-04-30' });
   const { publicDir: expiredDir } = fixture([expired]);
@@ -251,7 +256,7 @@ test('listing_type and a price period are rejected, and every card says للبي
   assert.match(errorsOf([base({ listing_type: 'sale' })], publicDir), /listing_type is not used/);
   assert.match(errorsOf([base({ price: { hidden: false, amount: 850000, currency: 'SAR', period: 'yearly' } })], publicDir), /price\.period is not used/);
   assert.match(errorsOf([base({ status: 'leased' })], publicDir), /bad status/);
-  assert.match(errorsOf([base({ payment: 'lease' })], publicDir), /missing payment/);
+  assert.match(errorsOf([base({ payment: 'lease' })], publicDir), /bad payment/);
   const { units } = validateUnits({ updated: '2026-10-24', units: [base()] }, { publicDir });
   buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units });
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
@@ -260,39 +265,59 @@ test('listing_type and a price period are rejected, and every card says للبي
   assert.ok(detail.includes('class="unit-deal">للبيع'));
 });
 
-test('the checked-in sample stays a draft sale at the full riyal price', () => {
+test('checked-in units 1-10 are one file each and stay hidden until expiry + QR are filled', () => {
   const doc = readUnitsDocument(root, join(root, 'public'));
-  const unit = doc.units[0];
-  assert.equal(unit.code, 'RT-001');
-  assert.equal(unit.status, 'draft');
-  assert.equal(unit._placeholder, true);
-  assert.equal(unit.listing_type, undefined);
+  const codes = doc.units.map((unit) => unit.code);
+  assert.deepEqual(codes, Array.from({ length: 10 }, (_, i) => `RT-${String(i + 1).padStart(3, '0')}`));
   assert.deepEqual(publishedUnits(doc.units), []);
-  for (const key of ['type', 'area_m2', 'rooms', 'bathrooms', 'floor', 'neighbourhood', 'city', 'payment']) {
-    assert.equal(unit[key], null);
+  for (const unit of doc.units) {
+    assert.equal(unit.status, 'available');
+    assert.match(unit.ad_license_number, /^72\d{8}$/);
+    assert.equal(unit.ad_license_expiry, '');
+    assert.equal(unit.ad_license_qr, '');
+    assert.ok(unit.features.includes('المعاينة مجانية'));
+    const text = JSON.stringify(unit);
+    assert.equal(text.includes('4 غرف نوم'), false, unit.code);
+    assert.equal(/تمويل|التمويل|بنك|البنوك|الراجحي|الأهلي|نسبة/.test(text), false, unit.code);
+    assert.equal(unit.payment, undefined);
   }
-  assert.equal(unit.price.hidden, false);
-  assert.equal(unit.price.amount, 430000);
-  assert.equal(unit.price.currency, 'SAR');
-  assert.equal(unit.ad_license_number, undefined);
-  assert.equal(unit.ad_license_expiry, undefined);
-  assert.equal(unit.ad_license_qr, undefined);
+  for (const code of ['RT-006', 'RT-007', 'RT-010']) assert.deepEqual(doc.units.find((u) => u.code === code).media, { logo: true });
+  const home = renderHomeUnits(doc.units, { whatsapp: site.whatsapp.url });
+  assert.deepEqual(home, { section: '', cta: '' });
+  const html = readFileSync(join(root, 'public/index.html'), 'utf8');
+  assert.equal(html.includes('شوف الوحدات المتاحة'), false);
+  assert.equal(html.includes('id="units"'), false);
+});
 
-  const { publicDir } = fixture([unit]);
-  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: [unit], preview: true });
-  const index = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
-  const article = index.slice(index.indexOf('<article'), index.indexOf('</article>'));
-  const detail = readFileSync(join(publicDir, 'units/RT-001/index.html'), 'utf8');
-  assert.ok(article.includes('430,000'));
-  assert.equal(article.includes('430 ألف'), false);
-  assert.equal(article.includes('430.000'), false);
-  assert.ok(article.includes('للبيع'));
-  assert.equal(article.includes('أبها'), false);
-  assert.equal(article.includes('rt-card-loc'), false);
-  assert.ok(article.includes('لا توجد رخصة إعلان'));
-  assert.equal(article.includes(waHref(site.whatsapp.url, 'RT-001')), false);
-  assert.ok(detail.includes('430,000'));
-  assert.ok(detail.includes('class="unit-deal">للبيع'));
-  assert.equal(detail.includes('>أبها<'), false);
-  assert.equal(detail.includes('<dt>الموقع</dt>'), false);
+test('filling expiry + QR publishes the unit on the home section with the hero button', () => {
+  const today = new Date('2026-11-04T12:00:00+03:00');
+  const doc = readUnitsDocument(root, join(root, 'public'));
+  const filled = doc.units.map((unit) => (unit.code === 'RT-008' || unit.code === 'RT-007'
+    ? { ...unit, ad_license_expiry: '2027-11-04', ad_license_qr: 'license-qr.png' }
+    : unit));
+  const { publicDir } = fixture(filled.filter((u) => u.ad_license_qr));
+  const { units, warnings } = validateUnits({ updated: '2026-11-04', units: filled.filter((u) => u.ad_license_qr) }, { publicDir, today });
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(publishedUnits(units, today).map((u) => u.code), ['RT-007', 'RT-008']);
+  const home = renderHomeUnits(filled, { whatsapp: site.whatsapp.url, today });
+  assert.ok(home.cta.includes('شوف الوحدات المتاحة') && home.cta.includes('href="#units"'));
+  assert.ok(home.section.includes('id="units"'));
+  assert.ok(home.section.includes('data-ref="RT-008"') && home.section.includes('data-ref="RT-007"'));
+  assert.equal(home.section.includes('data-ref="RT-001"'), false);
+  assert.ok(home.section.includes('rt-card-logo'));
+  assert.ok(home.section.includes('loading="lazy"'));
+  assert.ok(home.section.includes(waHref(site.whatsapp.url, 'RT-008')));
+  assert.ok(home.section.includes('المعاينة مجانية'));
+  assert.equal(home.section.includes('4 غرف نوم'), false);
+  assert.equal(home.section.includes('—'), false);
+});
+
+test('filled but invalid licence fields still fail the build', () => {
+  const { publicDir } = fixture([base()]);
+  assert.match(errorsOf([base({ ad_license_expiry: '04/11/2027' })], publicDir), /bad ad_license_expiry/);
+  assert.match(errorsOf([base({ ad_license_qr: 'missing-qr.png' })], publicDir), /ad_license_qr missing/);
+  assert.match(errorsOf([base({ ad_license_qr: 'qr.pdf' })], publicDir), /ad_license_qr/);
+  assert.match(errorsOf([base({ ad_license_number: '72-01' })], publicDir), /bad ad_license_number/);
+  assert.match(errorsOf([base({ area_m2: 'كبيرة' })], publicDir), /bad area_m2/);
+  assert.match(errorsOf([base({ media: { logo: true, cover: 'cover.jpg' } })], publicDir), /media.logo/);
 });
