@@ -198,6 +198,7 @@ const builtUnits = buildUnitPages({
   pageLinks: pageLinks('page-links'),
   units: unitsDoc.units,
   preview: previewDrafts,
+  mediaRoot: join(root, 'content/unit-media'),
 });
 
 const homeUnits = renderHomeUnits(unitsDoc.units, { whatsapp: site.whatsapp.url });

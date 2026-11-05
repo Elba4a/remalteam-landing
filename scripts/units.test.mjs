@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,13 +64,17 @@ function base(over = {}) {
   };
 }
 
-function errorsOf(units, publicDir) {
+function errorsOf(units, publicDir, extra = {}) {
   try {
-    validateUnits({ updated: '2026-10-24', units }, { publicDir });
+    validateUnits({ updated: '2026-10-24', units }, { publicDir, ...extra });
   } catch (error) {
     return error.errors.join('\n');
   }
   return '';
+}
+
+function visibleText(html) {
+  return html.replace(/<[^>]+>/g, '');
 }
 
 test('WhatsApp prefill is the CRM string, percent-encoded', () => {
@@ -280,7 +284,18 @@ test('checked-in units 1-10 are one file each and stay hidden until expiry + QR 
     assert.equal(text.includes('4 غرف نوم'), false, unit.code);
     assert.equal(/تمويل|التمويل|بنك|البنوك|الراجحي|الأهلي|نسبة/.test(text), false, unit.code);
     assert.equal(unit.payment, undefined);
+    if (unit.media.logo === true) continue;
+    for (const name of unit.media.photos) {
+      assert.equal(existsSync(join(root, 'content/unit-media', unit.code, name)), true, `${unit.code}/${name}`);
+      assert.equal(existsSync(join(root, 'public/units', unit.code, name)), false, `${unit.code}/${name}`);
+    }
   }
+  const shown = renderHomeUnits(doc.units.map((unit) => ({
+    ...unit,
+    ad_license_expiry: '2028-02-29',
+    ad_license_qr: 'https://example.com/license-qr.png',
+  })), { whatsapp: site.whatsapp.url, today: new Date('2026-11-05T12:00:00+03:00') });
+  assert.equal(visibleText(shown.section).includes('4 غرف نوم'), false);
   for (const code of ['RT-006', 'RT-007', 'RT-010']) assert.deepEqual(doc.units.find((u) => u.code === code).media, { logo: true });
   const home = renderHomeUnits(doc.units, { whatsapp: site.whatsapp.url });
   assert.deepEqual(home, { section: '', cta: '' });
@@ -308,7 +323,7 @@ test('filling expiry + QR publishes the unit on the home section with the hero b
   assert.ok(home.section.includes('loading="lazy"'));
   assert.ok(home.section.includes(waHref(site.whatsapp.url, 'RT-008')));
   assert.ok(home.section.includes('المعاينة مجانية'));
-  assert.equal(home.section.includes('4 غرف نوم'), false);
+  assert.equal(visibleText(home.section).includes('4 غرف نوم'), false);
   assert.equal(home.section.includes('—'), false);
 });
 
@@ -317,7 +332,54 @@ test('filled but invalid licence fields still fail the build', () => {
   assert.match(errorsOf([base({ ad_license_expiry: '04/11/2027' })], publicDir), /bad ad_license_expiry/);
   assert.match(errorsOf([base({ ad_license_qr: 'missing-qr.png' })], publicDir), /ad_license_qr missing/);
   assert.match(errorsOf([base({ ad_license_qr: 'qr.pdf' })], publicDir), /ad_license_qr/);
+  assert.match(errorsOf([base({ ad_license_qr: 'https://example.com/qr.pdf' })], publicDir), /ad_license_qr/);
+  assert.match(errorsOf([base({ ad_license_qr: 'https://example.com/qr' })], publicDir), /ad_license_qr/);
+  assert.equal(errorsOf([base({ ad_license_qr: 'https://example.com/license-qr.png' })], publicDir), '');
   assert.match(errorsOf([base({ ad_license_number: '72-01' })], publicDir), /bad ad_license_number/);
   assert.match(errorsOf([base({ area_m2: 'كبيرة' })], publicDir), /bad area_m2/);
   assert.match(errorsOf([base({ media: { logo: true, cover: 'cover.jpg' } })], publicDir), /media.logo/);
+});
+
+test('impossible calendar dates fail for draft and available units, real dates do not', () => {
+  const { publicDir } = fixture([base()]);
+  for (const expiry of ['2027-02-29', '2027-02-30', '2027-02-31', '2027-04-31', '2027-06-31', '2027-09-31', '2027-11-31']) {
+    assert.match(errorsOf([base({ ad_license_expiry: expiry })], publicDir), /bad ad_license_expiry/, expiry);
+    assert.match(errorsOf([base({ status: 'draft', ad_license_expiry: expiry })], publicDir), /bad ad_license_expiry/, expiry);
+  }
+  for (const expiry of ['2027-02-28', '2027-11-30', '2024-02-29', '2028-02-29', '2000-02-29']) {
+    assert.equal(errorsOf([base({ ad_license_expiry: expiry })], publicDir), '', expiry);
+    assert.equal(errorsOf([base({ status: 'draft', ad_license_expiry: expiry })], publicDir), '', expiry);
+  }
+});
+
+test('unpublished media is kept out of public and removed when a unit drops out', () => {
+  const today = new Date('2026-11-05T12:00:00+03:00');
+  const dir = mkdtempSync(join(tmpdir(), 'units-media-'));
+  const publicDir = join(dir, 'public');
+  const mediaRoot = join(dir, 'content/unit-media');
+  const source = join(mediaRoot, 'RT-008');
+  mkdirSync(source, { recursive: true });
+  writeFileSync(join(source, 'cover.jpg'), 'photo');
+  writeFileSync(join(source, 'license-qr.png'), 'qr');
+  const stale = join(publicDir, 'units', 'RT-008');
+  mkdirSync(stale, { recursive: true });
+  writeFileSync(join(stale, 'cover.jpg'), 'stale');
+  writeFileSync(join(stale, 'index.html'), 'old');
+  const hidden = base({ code: 'RT-008', ad_license_expiry: '', ad_license_qr: '' });
+  const hiddenDoc = validateUnits({ updated: '2026-11-04', units: [hidden] }, { publicDir, mediaRoot, today });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: hiddenDoc.units, today, mediaRoot });
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008')), false);
+  assert.equal(readFileSync(join(source, 'cover.jpg'), 'utf8'), 'photo');
+
+  const live = base({ code: 'RT-008', ad_license_expiry: '2028-02-29', ad_license_qr: 'license-qr.png' });
+  const liveDoc = validateUnits({ updated: '2026-11-04', units: [live] }, { publicDir, mediaRoot, today });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: liveDoc.units, today, mediaRoot });
+  assert.equal(readFileSync(join(publicDir, 'units', 'RT-008', 'cover.jpg'), 'utf8'), 'photo');
+  assert.equal(readFileSync(join(publicDir, 'units', 'RT-008', 'license-qr.png'), 'utf8'), 'qr');
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008', 'index.html')), true);
+
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: hiddenDoc.units, today, mediaRoot });
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008')), false);
+  assert.equal(readdirSync(join(publicDir, 'units')).includes('RT-008'), false);
+  rmSync(dir, { recursive: true, force: true });
 });

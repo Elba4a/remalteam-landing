@@ -1,7 +1,7 @@
 // Units listings. Office data stays in content/site.json; unit data stays in content/units.json.
 // Draft units are validated and then omitted from HTML, sitemap, and llms.txt.
 // Card markup lives only in scripts/rt-listing-card.mjs.
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { renderListingCard } from './rt-listing-card.mjs';
 import {
@@ -36,6 +36,17 @@ const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" strok
 
 const blank = (value) => value == null || (typeof value === 'string' && value.trim() === '');
 
+// Date.parse('2027-02-31') overflows to March, so a NaN check accepts days that
+// do not exist. Round-trip the UTC calendar fields instead.
+export function isCalendarDate(value) {
+  if (typeof value !== 'string' || !DATE_RE.test(value)) return false;
+  const year = Number(value.slice(0, 4));
+  const month = Number(value.slice(5, 7));
+  const day = Number(value.slice(8, 10));
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
 // REGA: a unit goes public only with all three licence fields. A non-draft unit
 // whose expiry or QR is still empty is "licence pending": it stays hidden and the
 // build does not fail. Filled-but-invalid values still fail the build.
@@ -60,7 +71,7 @@ function isHttps(value) {
   }
 }
 
-function mediaRef(code, value, publicDir, errors, label) {
+function mediaRef(code, value, publicDir, errors, label, mediaRoot) {
   if (typeof value !== 'string' || value.trim() === '') {
     errors.push(`${code}: bad media path (${label})`);
     return null;
@@ -73,7 +84,9 @@ function mediaRef(code, value, publicDir, errors, label) {
     errors.push(`${code}: bad media path (${label})`);
     return null;
   }
-  const root = resolve(publicDir, 'units', code);
+  // Source files live in mediaRoot/<code>/ when the build owns public/units.
+  // Tests that stage files directly under public/units/<code>/ omit mediaRoot.
+  const root = mediaRoot ? resolve(mediaRoot, code) : resolve(publicDir, 'units', code);
   const abs = resolve(root, value);
   if (abs !== root && !abs.startsWith(root + sep)) {
     errors.push(`${code}: bad media path (${label})`);
@@ -86,11 +99,21 @@ function mediaRef(code, value, publicDir, errors, label) {
   return { kind: 'local', url: `/units/${code}/${value}`, abs };
 }
 
+function qrImageOk(qr) {
+  if (!qr) return true;
+  if (qr.kind === 'local') return IMAGE_RE.test(String(qr.url).split('/').pop());
+  try {
+    return IMAGE_RE.test(new URL(qr.url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 function requireText(unit, key, errors) {
   if (typeof unit[key] !== 'string' || unit[key].trim() === '') errors.push(`${unit.code || '?'}: missing ${key}`);
 }
 
-export function validateUnits(data, { publicDir, today = new Date() }) {
+export function validateUnits(data, { publicDir, mediaRoot, today = new Date() }) {
   const errors = [];
   const warnings = [];
   const todayStamp = riyadhDate(today);
@@ -139,7 +162,7 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
       if (media.logo !== true) errors.push(`${label}: media.logo must be true`);
       if (media.cover != null || media.photos != null || media.video != null) errors.push(`${label}: media.logo cannot be combined with photos`);
     } else {
-      const cover = mediaRef(label, media.cover, publicDir, errors, 'cover');
+      const cover = mediaRef(label, media.cover, publicDir, errors, 'cover', mediaRoot);
       if (cover && cover.kind === 'local' && !IMAGE_RE.test(media.cover)) errors.push(`${label}: bad media path (cover)`);
       const photos = media.photos == null ? [media.cover] : media.photos;
       if (!Array.isArray(photos) || photos.length === 0) errors.push(`${label}: bad media path (photos)`);
@@ -148,18 +171,18 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
         for (const photo of photos) {
           if (names.has(photo)) errors.push(`${label}: bad media path (duplicate photo)`);
           names.add(photo);
-          const ref = mediaRef(label, photo, publicDir, errors, 'photo');
+          const ref = mediaRef(label, photo, publicDir, errors, 'photo', mediaRoot);
           if (ref && ref.kind === 'local' && !IMAGE_RE.test(photo)) errors.push(`${label}: bad media path (photo)`);
         }
         if (typeof media.cover === 'string' && !names.has(media.cover)) errors.push(`${label}: bad media path (cover not in photos)`);
       }
       if (media.video != null && media.video !== '') {
-        const video = mediaRef(label, media.video, publicDir, errors, 'video');
+        const video = mediaRef(label, media.video, publicDir, errors, 'video', mediaRoot);
         if (video?.kind === 'local') {
           if (!/\.mp4$/i.test(media.video)) errors.push(`${label}: bad media path (video must be mp4)`);
           else if (statSync(video.abs).size > VIDEO_MAX_BYTES) errors.push(`${label}: video over 3 MB (use an https URL instead)`);
         }
-        const poster = mediaRef(label, media.poster, publicDir, errors, 'poster');
+        const poster = mediaRef(label, media.poster, publicDir, errors, 'poster', mediaRoot);
         if (poster && poster.kind === 'local' && !IMAGE_RE.test(String(media.poster))) errors.push(`${label}: bad media path (poster)`);
       }
     }
@@ -185,16 +208,16 @@ export function validateUnits(data, { publicDir, today = new Date() }) {
       const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
       if (!number) errors.push(`${label}: missing ad_license_number`);
       else if (!LICENSE_NUMBER_RE.test(number)) errors.push(`${label}: bad ad_license_number`);
-      if (!blank(unit.ad_license_expiry) && (typeof unit.ad_license_expiry !== 'string' || !DATE_RE.test(unit.ad_license_expiry) || Number.isNaN(Date.parse(unit.ad_license_expiry)))) errors.push(`${label}: bad ad_license_expiry`);
+      if (!blank(unit.ad_license_expiry) && (typeof unit.ad_license_expiry !== 'string' || !isCalendarDate(unit.ad_license_expiry))) errors.push(`${label}: bad ad_license_expiry`);
       if (unit.ad_license_qr != null && typeof unit.ad_license_qr !== 'string') errors.push(`${label}: bad ad_license_qr`);
       if (licencePending(unit)) warnings.push(`${label}: hidden until ad_license_expiry and ad_license_qr are filled`);
     }
 
     if (unit.ad_license_qr != null && unit.ad_license_qr !== '') {
-      const qr = mediaRef(label, unit.ad_license_qr, publicDir, errors, 'ad_license_qr');
-      if (qr && qr.kind === 'local' && !IMAGE_RE.test(String(unit.ad_license_qr))) errors.push(`${label}: bad media path (ad_license_qr)`);
+      const qr = mediaRef(label, unit.ad_license_qr, publicDir, errors, 'ad_license_qr', mediaRoot);
+      if (qr && !qrImageOk(qr)) errors.push(`${label}: bad media path (ad_license_qr)`);
     }
-    if (typeof unit.ad_license_expiry === 'string' && unit.ad_license_expiry !== '' && !DATE_RE.test(unit.ad_license_expiry) && unit.status === 'draft') {
+    if (unit.status === 'draft' && !blank(unit.ad_license_expiry) && !isCalendarDate(unit.ad_license_expiry)) {
       errors.push(`${label}: bad ad_license_expiry`);
     }
     if (licenceExpired(unit, today)) warnings.push(`${label}: ad licence expired on ${unit.ad_license_expiry} (today in Riyadh is ${todayStamp}); not published`);
@@ -228,7 +251,7 @@ export function readUnitFiles(root) {
 export function readUnitsDocument(root, publicDir, today = new Date()) {
   const data = JSON.parse(readFileSync(join(root, 'content/units.json'), 'utf8'));
   if (data && Array.isArray(data.units)) data.units = [...data.units, ...readUnitFiles(root)];
-  const { units, warnings } = validateUnits(data, { publicDir, today });
+  const { units, warnings } = validateUnits(data, { publicDir, mediaRoot: join(root, 'content/unit-media'), today });
   return { updated: data.updated, units, warnings };
 }
 
@@ -569,11 +592,60 @@ ${specs}
   });
 }
 
-export function buildUnitPages({ publicDir, site, office, legal, pageLinks, units, preview = false, today = new Date() }) {
+function referencedLocalMedia(unit) {
+  const names = [];
+  const push = (value) => {
+    if (typeof value !== 'string' || !LOCAL_FILE_RE.test(value) || names.includes(value)) return;
+    names.push(value);
+  };
+  const media = unit.media || {};
+  if (media.logo !== true) {
+    push(media.cover);
+    for (const photo of Array.isArray(media.photos) ? media.photos : []) push(photo);
+    push(media.video);
+    push(media.poster);
+  }
+  push(unit.ad_license_qr);
+  return names;
+}
+
+// public/units/<code>/ is build output. Source files stay in mediaRoot and are
+// copied only for units that are actually being rendered. Everyone else loses
+// their public directory, including a unit that was published and then dropped.
+function syncPublishedMedia({ publicDir, mediaRoot, visible }) {
+  if (!mediaRoot) return;
+  const dir = join(publicDir, 'units');
+  mkdirSync(dir, { recursive: true });
+  const keep = new Set(visible.map((unit) => unit.code));
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || keep.has(entry.name)) continue;
+    rmSync(join(dir, entry.name), { recursive: true, force: true });
+  }
+  for (const unit of visible) {
+    const dest = join(dir, unit.code);
+    mkdirSync(dest, { recursive: true });
+    const names = referencedLocalMedia(unit);
+    const kept = new Set(names);
+    for (const name of names) {
+      const fromRoot = resolve(mediaRoot, unit.code);
+      const from = resolve(fromRoot, name);
+      if (from !== fromRoot && !from.startsWith(fromRoot + sep)) throw new Error(`${unit.code}: bad media path (${name})`);
+      if (!existsSync(from) || !statSync(from).isFile()) throw new Error(`${unit.code}: source media missing ${name}`);
+      copyFileSync(from, join(dest, name));
+    }
+    for (const file of readdirSync(dest)) {
+      if (file === 'index.html' || kept.has(file)) continue;
+      unlinkSync(join(dest, file));
+    }
+  }
+}
+
+export function buildUnitPages({ publicDir, site, office, legal, pageLinks, units, preview = false, today = new Date(), mediaRoot }) {
   const visible = preview ? units : publishedUnits(units, today);
   const ctx = { site, office, legal, pageLinks, today };
   const dir = join(publicDir, 'units');
   mkdirSync(dir, { recursive: true });
+  syncPublishedMedia({ publicDir, mediaRoot, visible });
   writeFileSync(join(dir, 'index.html'), renderIndex(visible, ctx));
   const keep = new Set(visible.map((unit) => unit.code));
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
