@@ -6,8 +6,10 @@ export function renderListingCard(unit, company, { iconHref = '/assets/icons.svg
   const v = buildView(unit, company, { iconHref });
   const h = v.html;
   const photo = unit.photos?.[0];
-  const media = photo
-    ? `<img src="${esc(photoBase + photo)}" alt="${esc(unit.title || unit.unit_type || 'صورة الوحدة')}" loading="lazy">`
+  const media = unit.logo
+    ? `<div class="rt-card-logo"><img src="/assets/logo-ivory.svg" alt="الرمال تيم" width="160" height="60" loading="lazy" decoding="async"><span class="rt-num">${esc(unit.ref)}</span></div>`
+    : photo
+    ? `<img src="${esc(photoBase + photo)}" alt="${esc(unit.title || unit.unit_type || 'صورة الوحدة')}" loading="lazy" decoding="async">`
     : `<div class="rt-card-ph"><svg class="rt-waves" viewBox="0 0 300 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 50 C80 20 160 25 220 55 S290 95 300 85"/><path d="M0 70 C80 40 160 45 220 75 S290 115 300 105"/><path d="M0 90 C80 60 160 65 220 95 S290 135 300 125"/></svg><b>مكان صورة العقار</b><span>صورة حقيقية للوحدة فقط</span></div>`;
   const linkedMedia = v.detailHref ? `<a href="${esc(v.detailHref)}">${media}</a>` : media;
   const tag = unit.sample ? '<span class="rt-card-tag">مثال</span>' : (v.draft ? '<span class="rt-card-tag rt-card-tag--draft">مسودة</span>' : '');
