@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from 
 import { spawnSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readUnitsDocument, buildUnitPages, publishedUnits, renderHomeUnits } from './units-lib.mjs';
+import { readUnitsDocument, buildUnitPages, publishedUnits, renderHomeUnits, SITE_WA_TEXT, siteWaHref } from './units-lib.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const pub = join(root, 'public');
@@ -45,15 +45,17 @@ const unitsLive = publishedUnits(unitsDoc.units);
 const previewDrafts = process.argv.includes('--preview-drafts');
 const CITY_UNIT_SLUGS = new Set(['abha', 'khamis-mushait']);
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+// One prefilled link for every non-unit button, including the footer.
+// Per-page wa_text is not used. Unit cards keep their own message in waHref().
+const siteWa = siteWaHref(site.whatsapp.url);
 const HOME_FAQ = [
   { q: 'هل حسبة التمويل ومقارنة البنوك مجانية؟', a: 'نعم. حسبة التمويل ومقارنة البنوك مجاناً لأي شخص يسأل.' },
   { q: 'هل المعاينة مجانية؟', a: 'نعم. المعاينة مجانية.' },
-  { q: 'كيف أتواصل معكم؟', a: `عبر واتساب: ${site.whatsapp.url}`, href: site.whatsapp.url },
+  { q: 'كيف أتواصل معكم؟', a: `عبر واتساب: ${site.whatsapp.url}`, href: siteWa },
 ];
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 const url = (p) => `${site.origin}/${p ? p.slug + '/' : ''}`;
-const wa = (text) => (text ? `${site.whatsapp.url}?text=${encodeURIComponent(text)}` : site.whatsapp.url);
 const json = (o) => JSON.stringify(o, null, 2).replace(/</g, '\\u003c');
 
 const office = {
@@ -88,15 +90,32 @@ const pageLinks = (cls) => {
   return `<nav class="${cls}" aria-label="صفحات الموقع">${groups}${units}</nav>`;
 };
 
-const legal = `<div class="legal">
+const legal = (whatsappHref) => `<div class="legal">
           <span>السجل التجاري: <b class="ltr">${site.commercial_registration}</b></span>
           <span>رخصة فال: <b class="ltr">${site.fal_license}</b></span>
-          <span>واتساب: <a class="ltr" href="${site.whatsapp.url}">${site.whatsapp.number}</a></span>
+          <span>واتساب: <a class="ltr" href="${whatsappHref}">${site.whatsapp.number}</a></span>
           <span>البريد: <a class="ltr" href="mailto:${site.email}">${site.email}</a></span>
           <span>سناب شات: <a class="ltr" href="${site.snapchat.url}">${site.snapchat.handle}</a></span>
           <span>تيك توك: <a class="ltr" href="${site.tiktok.url}">${site.tiktok.handle}</a></span>
           <span>© <span class="ltr">${new Date().getFullYear()}</span> ${site.name.ar}</span>
         </div>`;
+
+// Unit-card links already carry "جيتكم من الموقع - وحدة RT-xxx". Everything else
+// on a non-unit page opens with the shared greeting.
+function applySiteWhatsapp(html) {
+  return html.replace(/href="(https:\/\/(?:wa\.me|api\.whatsapp\.com)[^"]*)"/g, (full, href) => {
+    let parsed;
+    try {
+      parsed = new URL(href);
+    } catch {
+      return full;
+    }
+    if (parsed.hostname !== 'wa.me' && parsed.hostname !== 'api.whatsapp.com') return full;
+    const text = parsed.searchParams.get('text') || '';
+    if (text.startsWith(`${SITE_WA_TEXT} - وحدة `)) return full;
+    return `href="${siteWa}"`;
+  });
+}
 
 const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>';
 
@@ -134,9 +153,11 @@ function cityUnitsSection(p) {
 
 function faqAnswerHtml(item) {
   if (!item.href) return esc(item.a);
-  const url = esc(item.href);
+  const href = esc(item.href);
   const text = esc(item.a);
-  return text.includes(url) ? text.replace(url, `<a class="ltr" href="${url}">${url}</a>`) : text;
+  const shown = esc(site.whatsapp.url);
+  if (text.includes(shown)) return text.replace(shown, `<a class="ltr" href="${href}">${shown}</a>`);
+  return text.includes(href) ? text.replace(href, `<a class="ltr" href="${href}">${href}</a>`) : text;
 }
 
 function homeFaqSection() {
@@ -216,7 +237,7 @@ ${schema(graph)}
 <header class="site-head night">
   <div class="wrap">
     <a class="logo" href="/" aria-label="${esc(site.name.ar)} — الصفحة الرئيسية"><img src="/assets/logo-ivory.svg" alt="الرمال تيم العقارية" width="164" height="36"></a>
-    <a class="btn btn-gold" href="${wa(p.wa_text)}">${ICON_CHAT}واتساب</a>
+    <a class="btn btn-gold" href="${siteWa}">${ICON_CHAT}واتساب</a>
   </div>
 </header>
 <main id="main">
@@ -227,7 +248,7 @@ ${schema(graph)}
       <h1 id="page-title">${esc(p.h1)}</h1>
       ${p.en ? `<p class="en en-line">${esc(p.en)}</p>` : ''}
       <p class="lead">${esc(p.lead)}</p>
-      <a class="btn btn-gold" href="${wa(p.wa_text)}">${ICON_CHAT}تواصل عبر واتساب</a>
+      <a class="btn btn-gold" href="${siteWa}">${ICON_CHAT}تواصل عبر واتساب</a>
     </div>
   </section>
 ${(p.sections || []).map((s, i) => `  <section class="${i % 2 ? 'sand' : ''}">
@@ -249,13 +270,13 @@ ${faq.map((f) => `      <details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p
           <h2 id="contact-title">تواصل معنا</h2>
           <p class="en">Get in touch</p>
           <p>اكتب لنا على واتساب: نوع العقار، الحي، والميزانية أو بيانات التمويل. حسبة التمويل ومقارنة البنوك نرسلها لك خلال دقائق، وباقي الطلبات نرد عليها في أقرب وقت.</p>
-          <a class="btn btn-gold" href="${wa(p.wa_text)}">${ICON_CHAT}تواصل عبر واتساب</a>
+          <a class="btn btn-gold" href="${siteWa}">${ICON_CHAT}تواصل عبر واتساب</a>
         </div>
         ${pageLinks('page-links')}
       </div>
       <footer class="site-foot">
         <img src="/assets/logo-ivory.svg" alt="الرمال تيم العقارية" width="137" height="30" loading="lazy">
-        ${legal}
+        ${legal(siteWa)}
         <a href="https://calc.remalteam.com" rel="nofollow">دخول الفريق</a>
       </footer>
     </div>
@@ -268,14 +289,14 @@ ${faq.map((f) => `      <details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p
 
 for (const p of pages) {
   mkdirSync(join(pub, p.slug), { recursive: true });
-  writeFileSync(join(pub, p.slug, 'index.html'), page(p));
+  writeFileSync(join(pub, p.slug, 'index.html'), applySiteWhatsapp(page(p)));
 }
 
 const builtUnits = buildUnitPages({
   publicDir: pub,
   site,
   office,
-  legal,
+  legal: legal(site.whatsapp.url),
   pageLinks: pageLinks('page-links'),
   units: unitsDoc.units,
   preview: previewDrafts,
@@ -297,7 +318,7 @@ const blocks = {
   faq: homeFaqSection(),
   'home-links': pageLinks('page-links reveal'),
   'foot-links': pageLinks('page-links'),
-  legal,
+  legal: legal(siteWa),
   units: homeUnits.section,
   'units-cta': homeUnits.cta,
 };
@@ -308,12 +329,13 @@ for (const [name, html] of Object.entries(blocks)) {
   // Replacer function, so '$' in content is never read as a replacement pattern.
   home = home.replace(re, (_, open, close) => open + (html ? `\n${html}\n` : '') + close);
 }
+home = applySiteWhatsapp(home);
 writeFileSync(join(pub, 'index.html'), home);
 
 // 404: self-contained (inline styles), but the office line comes from site.json like every other page.
 writeFileSync(join(pub, '404.html'), `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>الصفحة غير موجودة | الرمال تيم العقارية</title><meta name="robots" content="noindex"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#1C1D21;color:#F7F4EF;font:16px/28px 'IBM Plex Sans Arabic',Tahoma,sans-serif;text-align:center;padding:16px">
-<div><img src="/assets/mark-gold.svg" alt="" width="72" style="margin:0 auto 16px"><h1 style="font-size:28px;margin:0 0 8px">الصفحة غير موجودة</h1><p style="color:#B9B2A6;margin:0 0 24px">Page not found</p><a href="/" style="color:#C8A46B">العودة للرئيسية</a><p style="color:#B9B2A6;font-size:13px;margin-top:32px">السجل التجاري ${site.commercial_registration} · رخصة فال ${site.fal_license} · واتساب <a href="${site.whatsapp.url}" style="color:#B9B2A6" dir="ltr">${site.whatsapp.number}</a></p></div></body></html>
+<div><img src="/assets/mark-gold.svg" alt="" width="72" style="margin:0 auto 16px"><h1 style="font-size:28px;margin:0 0 8px">الصفحة غير موجودة</h1><p style="color:#B9B2A6;margin:0 0 24px">Page not found</p><a href="/" style="color:#C8A46B">العودة للرئيسية</a><p style="color:#B9B2A6;font-size:13px;margin-top:32px">السجل التجاري ${site.commercial_registration} · رخصة فال ${site.fal_license} · واتساب <a href="${siteWa}" style="color:#B9B2A6" dir="ltr">${site.whatsapp.number}</a></p></div></body></html>
 `);
 
 // One urlset at public/sitemap.xml (https://remalteam.com/sitemap.xml). Not a sitemap index.

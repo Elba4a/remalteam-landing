@@ -19,11 +19,13 @@ import {
   licenceExpired,
   locationLine,
   riyadhDate,
+  SITE_WA_TEXT,
+  siteWaHref,
   waHref,
   waMessage,
 } from './listing-view.mjs';
 
-export { HIDDEN_PRICE, esc, licenceExpired, riyadhDate, waHref, waMessage };
+export { HIDDEN_PRICE, esc, licenceExpired, riyadhDate, SITE_WA_TEXT, siteWaHref, waHref, waMessage };
 
 export const CODE_RE = /^[A-Z]{2,4}-\d{3,4}$/;
 export const STATUSES = ['draft', 'available', 'reserved', 'sold'];

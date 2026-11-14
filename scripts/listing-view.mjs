@@ -36,8 +36,16 @@ export function formatLicenceDate(iso) {
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
+// Shared greeting for every non-unit WhatsApp link. Unit cards append the code.
+export const SITE_WA_TEXT = 'السلام عليكم، جيتكم من الموقع';
+
 export function waMessage(code) {
-  return `السلام عليكم، جيتكم من الموقع - وحدة ${code}`;
+  return `${SITE_WA_TEXT} - وحدة ${code}`;
+}
+
+export function siteWaHref(whatsappUrl) {
+  const base = String(whatsappUrl).replace(/\/$/, '');
+  return `${base}?text=${encodeURIComponent(SITE_WA_TEXT)}`;
 }
 
 export function waHref(whatsappUrl, code) {
