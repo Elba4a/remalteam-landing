@@ -477,6 +477,62 @@ function jsonLd(value) {
   return JSON.stringify(value, null, 2).replace(/</g, '\\u003c');
 }
 
+// Schema.org type for the unit's own `type` string. Unknown types are omitted.
+function accommodationType(type) {
+  const value = typeof type === 'string' ? type.trim() : '';
+  if (value.startsWith('شقة') || value.startsWith('دور')) return 'Apartment';
+  if (value.startsWith('فيلا')) return 'SingleFamilyResidence';
+  if (value.startsWith('عمارة')) return 'ApartmentComplex';
+  if (value.startsWith('استراحة')) return 'House';
+  return '';
+}
+
+function listingImageUrls(unit, origin) {
+  if (unit.media?.logo === true) return [`${origin}/assets/og.png`];
+  const urls = [];
+  const add = (file) => {
+    if (typeof file !== 'string' || !file.trim()) return;
+    const url = /^https:\/\//i.test(file) ? file : `${origin}/units/${unit.code}/${file}`;
+    if (!urls.includes(url)) urls.push(url);
+  };
+  const photos = Array.isArray(unit.media?.photos) ? unit.media.photos : [];
+  if (photos.length) photos.forEach(add);
+  else add(unit.media?.cover);
+  return urls;
+}
+
+function listingAddress(unit) {
+  const address = { '@type': 'PostalAddress', addressRegion: 'عسير', addressCountry: 'SA' };
+  const city = typeof unit.city === 'string' ? unit.city.trim() : '';
+  const district = typeof unit.neighbourhood === 'string' ? unit.neighbourhood.trim() : '';
+  if (city) address.addressLocality = city;
+  if (district) address.streetAddress = district;
+  return address;
+}
+
+// Room counts come only from integer fields already on the unit. `rooms` is the
+// single stored count; the listing card already presents it as غرف نوم.
+function applyListingFacts(listing, unit, origin, offer) {
+  const images = listingImageUrls(unit, origin);
+  if (images.length) listing.image = images;
+  listing.address = listingAddress(unit);
+  const propertyType = accommodationType(unit.type);
+  if (propertyType) listing.additionalType = `https://schema.org/${propertyType}`;
+  if (Number.isInteger(unit.rooms)) {
+    listing.numberOfRooms = unit.rooms;
+    listing.numberOfBedrooms = unit.rooms;
+  }
+  if (Number.isInteger(unit.bathrooms)) listing.numberOfBathroomsTotal = unit.bathrooms;
+  if (isCalendarDate(unit.ad_license_expiry)) {
+    listing.validThrough = unit.ad_license_expiry;
+    if (offer) {
+      offer.validThrough = unit.ad_license_expiry;
+      offer.priceValidUntil = unit.ad_license_expiry;
+    }
+  }
+  if (isCalendarDate(unit.updated)) listing.datePosted = unit.updated;
+}
+
 const COMMERCIAL_REGISTRATION = '7053922824';
 
 function officeWithoutCommercialRegistration(office) {
@@ -681,6 +737,7 @@ function renderDetail(unit, ctx) {
     provider: { '@id': ctx.office['@id'] },
   };
   if (offer) listing.offers = offer;
+  applyListingFacts(listing, unit, origin, offer);
   if (view.license) listing.identifier = { '@type': 'PropertyValue', name: 'رقم ترخيص الإعلان', value: view.license.number };
   if (typeof unit.area_m2 === 'number') listing.floorSize = { '@type': 'QuantitativeValue', value: unit.area_m2, unitCode: 'MTK' };
   const graph = [

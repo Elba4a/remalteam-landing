@@ -68,6 +68,8 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
 .sec-head .en { color: var(--ink-muted); font-size: 18px; margin: 0; }
 .prose { max-width: calc(760px + 2 * var(--gutter)); margin-inline: 0; }
 .prose p, .prose li { color: var(--ink-muted); }
+.city-units { margin: 0; padding-inline-start: 1.25em; }
+.city-units li { margin: 8px 0; }
 
 .faq details { border-bottom: 1px solid var(--line); padding: 16px 0; }
 .faq summary { cursor: pointer; font-weight: 600; color: var(--ink); }

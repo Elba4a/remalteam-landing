@@ -6,6 +6,9 @@
     "directory": "./public",
     "binding": "ASSETS",
     "not_found_handling": "404-page",
+    // Directory indexes are canonical with a trailing slash (/units/index.html → /units/).
+    // The asset runtime redirects the other spelling with 307; worker.js turns that into 301.
+    "html_handling": "auto-trailing-slash",
     "run_worker_first": true
   },
   "routes": [

@@ -94,3 +94,41 @@ test('the units feed allows only calc.remalteam.com and caches for five minutes'
   assert.equal(www.location, 'https://remalteam.com/units/index.json');
   assert.deepEqual(www.calls, []);
 });
+
+function assetsWith(handler) {
+  const calls = [];
+  return {
+    calls,
+    env: {
+      ASSETS: {
+        fetch(request) {
+          calls.push(request.url);
+          return handler(request);
+        },
+      },
+    },
+  };
+}
+
+test('assets trailing-slash redirects are reissued as 301', async () => {
+  const cases = [
+    ['/units', '/units/', 'https://remalteam.com/units/'],
+    ['/units/', '/units', 'https://remalteam.com/units'],
+    ['/abha', '/abha/', 'https://remalteam.com/abha/'],
+    ['/units?x=1', '/units/?x=1', 'https://remalteam.com/units/?x=1'],
+  ];
+  for (const [path, location, absolute] of cases) {
+    const { calls, env } = assetsWith(() => new Response(null, { status: 307, headers: { Location: location } }));
+    const res = await worker.fetch(new Request(`https://remalteam.com${path}`), env);
+    assert.equal(res.status, 301, path);
+    assert.equal(res.headers.get('location'), absolute, path);
+    assert.equal(calls.length, 1, path);
+  }
+});
+
+test('an asset redirect that is not only a trailing slash stays 307', async () => {
+  const { env } = assetsWith(() => new Response(null, { status: 307, headers: { Location: '/units/' } }));
+  const res = await worker.fetch(new Request('https://remalteam.com/units/index.html'), env);
+  assert.equal(res.status, 307);
+  assert.equal(res.headers.get('location'), '/units/');
+});
