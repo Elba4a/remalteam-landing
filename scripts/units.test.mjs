@@ -8,6 +8,7 @@ import {
   HIDDEN_PRICE,
   VIDEO_MAX_BYTES,
   buildUnitPages,
+  buildUnitsFeed,
   publishedUnits,
   readUnitsDocument,
   renderHomeUnits,
@@ -565,10 +566,168 @@ test('an expired no-QR unit stays hidden and a hidden unit’s media is not sync
   assert.equal(readFileSync(join(expiredSrc, 'cover.jpg'), 'utf8'), 'expired-photo');
   assert.equal(readFileSync(join(publicDir, 'units', 'RT-006', 'cover.jpg'), 'utf8'), 'live-photo');
   assert.equal(existsSync(join(publicDir, 'units', 'RT-006', 'license-qr.png')), false);
+  const hiddenFeed = JSON.parse(readFileSync(join(publicDir, 'units/index.json'), 'utf8'));
+  assert.deepEqual(hiddenFeed.units.map((unit) => unit.code), ['RT-006']);
+  assert.equal(JSON.stringify(hiddenFeed).includes('hidden-photo'), false);
+  assert.equal(JSON.stringify(hiddenFeed).includes('expired-photo'), false);
+  assert.equal(JSON.stringify(hiddenFeed).includes('RT-001'), false);
+  assert.equal(JSON.stringify(hiddenFeed).includes('RT-002'), false);
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
   assert.equal(html.includes('RT-001'), false);
   assert.equal(html.includes('RT-002'), false);
   assert.ok(html.includes('RT-006'));
   assert.equal(existsSync(join(publicDir, 'units/RT-002/index.html')), false);
   rmSync(dir, { recursive: true, force: true });
+});
+
+const FEED_KEYS = [
+  'code', 'type', 'title', 'city', 'neighbourhood', 'area_m2', 'price',
+  'rooms', 'bathrooms', 'floor', 'features', 'payment',
+  'ad_license_number', 'ad_license_expiry', 'status', 'availability',
+  'needs_manager_confirmation', 'cover', 'photos', 'page_url', 'updated',
+];
+
+test('the public feed lists only public units, with absolute URLs, and rejects a bad availability', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const live = base({
+    code: 'RT-010',
+    title: 'شقة منشورة',
+    features: ['المعاينة مجانية'],
+    media: { cover: 'cover.jpg', photos: ['cover.jpg', 'inside.jpg'] },
+    ad_license_qr: 'license-qr.png',
+    fal_license: '1200048445',
+    ad_license_verify_url: 'https://rega.gov.sa/example',
+    ad_license_advertiser: 'مكتب الرمال تيم العقارية',
+  });
+  const remote = base({
+    code: 'RT-011',
+    availability: 'reserved',
+    media: {
+      cover: 'https://media.example.com/RT-011/cover.jpg',
+      photos: ['https://media.example.com/RT-011/cover.jpg'],
+    },
+  });
+  const soldAvailability = base({
+    code: 'RT-012',
+    availability: 'sold',
+    needs_manager_confirmation: true,
+    media: { cover: 'secret-sold.jpg', photos: ['secret-sold.jpg'] },
+  });
+  const draft = base({
+    code: 'RT-013',
+    status: 'draft',
+    _placeholder: true,
+    ad_license_number: null,
+    ad_license_expiry: null,
+    ad_license_qr: null,
+    media: { cover: 'draft-only.jpg', photos: ['draft-only.jpg'] },
+  });
+  const pending = base({
+    code: 'RT-014',
+    ad_license_expiry: '',
+    ad_license_qr: '',
+    media: { cover: 'pending-only.jpg', photos: ['pending-only.jpg'] },
+  });
+  const expired = base({
+    code: 'RT-015',
+    ad_license_expiry: '2026-04-30',
+    ad_license_qr: '',
+    media: { cover: 'expired-only.jpg', photos: ['expired-only.jpg'] },
+  });
+  const units = [draft, pending, expired, live, remote, soldAvailability];
+  const { publicDir, dir } = fixture(units);
+  const checked = validateUnits({ updated: '2026-11-14', units }, { publicDir, today });
+  assert.equal(checked.units.length, 6);
+  const built = buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: checked.units, today, preview: true });
+  const feed = JSON.parse(readFileSync(join(publicDir, 'units/index.json'), 'utf8'));
+  assert.equal(feed.schema_version, 1);
+  assert.equal(feed.generated_at, today.toISOString());
+  assert.deepEqual(feed.units.map((unit) => unit.code), ['RT-010', 'RT-011', 'RT-012']);
+  assert.deepEqual(feed.units.map((unit) => unit.code), built.published.map((unit) => unit.code));
+  assert.deepEqual(feed.units.map((unit) => unit.code), publishedUnits(checked.units, today).map((unit) => unit.code));
+
+  const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
+  assert.ok(html.includes('RT-013'), 'preview still renders the draft on the site');
+  const raw = JSON.stringify(feed);
+  for (const secret of ['RT-013', 'RT-014', 'RT-015', 'draft-only.jpg', 'pending-only.jpg', 'expired-only.jpg', 'license-qr.png', 'ad_license_qr', 'fal_license', 'rega.gov.sa', '7053922824']) {
+    assert.equal(raw.includes(secret), false, secret);
+  }
+  assert.equal(/الراجحي|الأهلي|الإنماء|بنك البلاد|سامبا|الجزيرة|الفرنسي|نسبة التمويل/.test(raw), false);
+
+  const listed = feed.units[0];
+  assert.deepEqual(Object.keys(listed), FEED_KEYS);
+  assert.deepEqual(Object.keys(listed.price), ['hidden', 'amount', 'currency']);
+  assert.equal(listed.cover, 'https://remalteam.com/units/RT-010/cover.jpg');
+  assert.deepEqual(listed.photos, [
+    'https://remalteam.com/units/RT-010/cover.jpg',
+    'https://remalteam.com/units/RT-010/inside.jpg',
+  ]);
+  assert.equal(listed.page_url, 'https://remalteam.com/units/RT-010/');
+  assert.equal(listed.availability, 'available');
+  assert.equal(listed.needs_manager_confirmation, false);
+  assert.equal(listed.status, 'available');
+  assert.equal(listed.features[0], 'المعاينة مجانية');
+
+  assert.equal(feed.units[1].availability, 'reserved');
+  assert.equal(feed.units[1].cover, 'https://media.example.com/RT-011/cover.jpg');
+  assert.equal(feed.units[1].page_url, 'https://remalteam.com/units/RT-011/');
+  assert.equal(feed.units[2].availability, 'sold');
+  assert.equal(feed.units[2].needs_manager_confirmation, true);
+  assert.equal(feed.units[2].cover, 'https://remalteam.com/units/RT-012/secret-sold.jpg');
+
+  const detail = readFileSync(join(publicDir, 'units/RT-012/index.html'), 'utf8');
+  assert.ok(detail.includes('متاح'));
+  assert.ok(detail.includes(waHref(site.whatsapp.url, 'RT-012')));
+  assert.equal(detail.includes('تم البيع'), false);
+  assert.equal(detail.includes('unit-layout--closed'), false);
+  assert.equal(html.includes('rt-card--closed'), false);
+
+  const { publicDir: ruleDir } = fixture([base()]);
+  for (const value of ['leased', '', null, 1, 'sold ']) {
+    assert.match(errorsOf([base({ availability: value })], ruleDir), /bad availability/);
+  }
+  assert.match(errorsOf([base({ needs_manager_confirmation: 'yes' })], ruleDir), /needs_manager_confirmation/);
+  assert.equal(errorsOf([base()], ruleDir), '');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('the checked-in feed is exactly the published units, and only RT-004 needs confirmation', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const doc = readUnitsDocument(root, join(root, 'public'), today);
+  const feed = buildUnitsFeed(doc.units, { origin: 'https://remalteam.com', today });
+  assert.equal(feed.schema_version, 1);
+  assert.deepEqual(feed.units.map((unit) => unit.code), publishedUnits(doc.units, today).map((unit) => unit.code));
+  assert.deepEqual(feed.units.map((unit) => unit.code), ['RT-001', 'RT-002', 'RT-003', 'RT-004', 'RT-005', 'RT-006', 'RT-007', 'RT-008', 'RT-009', 'RT-010']);
+  const raw = JSON.stringify(feed);
+  for (const secret of ['ad_license_qr', 'ad_license_verify_url', 'fal_license', 'rega.gov.sa', '7053922824', 'license-qr', '1200048445']) {
+    assert.equal(raw.includes(secret), false, secret);
+  }
+  assert.equal(/الراجحي|الأهلي|الإنماء|بنك البلاد|نسبة/.test(raw), false);
+  const flagged = feed.units.filter((unit) => unit.needs_manager_confirmation);
+  assert.deepEqual(flagged.map((unit) => unit.code), ['RT-004']);
+  const rt004 = feed.units.find((unit) => unit.code === 'RT-004');
+  assert.equal(rt004.status, 'available');
+  assert.equal(rt004.availability, 'available');
+  assert.equal(rt004.type, 'شقة – دور أرضي');
+  assert.equal(rt004.city, 'أبها');
+  assert.equal(rt004.neighbourhood, 'الزهور');
+  assert.equal(rt004.area_m2, 160.01);
+  assert.equal(rt004.floor, 'الأرضي');
+  assert.equal(rt004.rooms, null);
+  assert.equal(rt004.bathrooms, null);
+  assert.equal(rt004.payment, null);
+  assert.deepEqual(rt004.price, { hidden: false, amount: 350000, currency: 'SAR' });
+  assert.equal(rt004.ad_license_number, '7201191114');
+  assert.equal(rt004.ad_license_expiry, '2027-04-15');
+  assert.equal(rt004.updated, '2026-11-14');
+  assert.equal(rt004.page_url, 'https://remalteam.com/units/RT-004/');
+  assert.equal(rt004.cover, 'https://remalteam.com/units/RT-004/photo-1.jpg');
+  assert.deepEqual(rt004.photos, [1, 2, 3, 4, 5, 6, 7].map((n) => `https://remalteam.com/units/RT-004/photo-${n}.jpg`));
+  assert.ok(rt004.cover.startsWith('https://remalteam.com/units/RT-004/'));
+  assert.ok(rt004.photos.every((url) => url.startsWith('https://remalteam.com/units/RT-004/')));
+  for (const unit of feed.units) {
+    assert.equal(unit.availability, 'available');
+    assert.ok(unit.page_url.startsWith('https://remalteam.com/units/'));
+    assert.ok(String(unit.cover).startsWith('https://'));
+  }
 });
