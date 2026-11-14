@@ -22,6 +22,18 @@ export const STATUS_LABEL = {
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Written licence block on every public unit (Real-Estate Advertising Regulation art. 5/1).
+// Same facts as content/site.json: office name, FAL licence, and the WhatsApp number
+// in local form. The commercial-registration number is not part of this block.
+export const ADVERTISER_NAME = 'مكتب الرمال تيم العقارية';
+export const FAL_LICENSE = '1200048445';
+export const ADVERTISER_WHATSAPP = '0535330034';
+
+export function formatLicenceDate(iso) {
+  if (typeof iso !== 'string' || !DATE_RE.test(iso)) return '';
+  return `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+}
+
 export const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 
 export function waMessage(code) {
@@ -44,6 +56,11 @@ export function licenceExpired(unit, today = new Date()) {
 /** Full riyals, Western digits, en-US grouping. Never shortened to thousands. */
 export function formatPriceAmount(amount) {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 0, useGrouping: true }).format(amount);
+}
+
+/** Area in m². Keeps the decimals stored on the unit (189.61 stays 189.61). */
+export function formatMeasure(amount) {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2, useGrouping: true }).format(amount);
 }
 
 export function locationLine(district, city) {
@@ -87,7 +104,7 @@ export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}
   }
 
   const area = specs.area_m2;
-  slot('area', area == null || area === '', `<span class="rt-num">${esc(formatPriceAmount(area))}</span> م²`);
+  slot('area', area == null || area === '', `<span class="rt-num">${esc(formatMeasure(area))}</span> م²`);
   const rooms = specs.bedrooms;
   slot('bed', rooms == null || rooms === '', countPhrase(rooms, 'غرفة نوم', 'غرف نوم'));
   const baths = specs.bathrooms;
@@ -108,13 +125,27 @@ export function buildView(unit, company, { iconHref = '/assets/icons.svg' } = {}
   const priceParts = hidden
     ? { hidden: true, amount: HIDDEN_PRICE, suffix: '' }
     : { hidden: false, amount: formatPriceAmount(unit.price.amount), suffix: 'ر.س' };
+  const expiry = typeof unit.ad_licence?.expiry === 'string' ? unit.ad_licence.expiry.trim() : '';
   const qr = typeof unit.ad_licence?.qr === 'string' ? unit.ad_licence.qr : '';
   const qrImg = number && qr
     ? `<img src="${esc(qr)}" alt="${esc(`رمز QR لترخيص الإعلان ${number}`)}" width="72" height="72" loading="lazy">`
     : '';
+  const expiryHtml = expiry ? `<span>ينتهي <span class="rt-num">${esc(expiry)}</span></span>` : '';
+  const advertiser = typeof unit.ad_licence?.advertiser === 'string' && unit.ad_licence.advertiser.trim()
+    ? unit.ad_licence.advertiser.trim()
+    : ADVERTISER_NAME;
+  const fal = typeof unit.ad_licence?.fal === 'string' && unit.ad_licence.fal.trim()
+    ? unit.ad_licence.fal.trim()
+    : FAL_LICENSE;
+  const whatsapp = typeof unit.ad_licence?.whatsapp === 'string' && unit.ad_licence.whatsapp.trim()
+    ? unit.ad_licence.whatsapp.trim()
+    : ADVERTISER_WHATSAPP;
+  const compliance = number
+    ? `<span>المعلن: ${esc(advertiser)}</span><span>رخصة فال <span class="rt-num">${esc(fal)}</span></span><span>واتساب <span class="rt-num">${esc(whatsapp)}</span></span>`
+    : '';
   const ref = `<span>مرجع <span class="rt-num">${esc(unit.ref)}</span></span>`;
   const legal = number
-    ? `<span>ترخيص الإعلان <span class="rt-num">${esc(number)}</span></span>${qrImg}${ref}`
+    ? `<span>ترخيص الإعلان <span class="rt-num">${esc(number)}</span></span>${expiryHtml}${compliance}${qrImg}${ref}`
     : `<span>لا توجد رخصة إعلان</span>${ref}`;
   const features = Array.isArray(unit.features) && unit.features.length
     ? unit.features.filter((item) => typeof item === 'string' && item.trim()).map((item) => `<li>${esc(item.trim())}</li>`).join('')

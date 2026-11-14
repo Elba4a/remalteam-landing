@@ -10,6 +10,11 @@ import {
   DEAL_LABEL,
   STATUS_LABEL,
   esc,
+  ADVERTISER_NAME,
+  ADVERTISER_WHATSAPP,
+  FAL_LICENSE,
+  formatLicenceDate,
+  formatMeasure,
   formatPriceAmount,
   licenceExpired,
   locationLine,
@@ -47,11 +52,13 @@ export function isCalendarDate(value) {
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
 
-// REGA: a unit goes public only with all three licence fields. A non-draft unit
-// whose expiry or QR is still empty is "licence pending": it stays hidden and the
-// build does not fail. Filled-but-invalid values still fail the build.
+// A non-draft unit goes public with a valid ad licence number and an unexpired
+// expiry (Real-Estate Advertising Regulation art. 5/1: the written data is enough).
+// The QR image is optional. A non-draft unit whose expiry is still empty is
+// "licence pending": it stays hidden and the build does not fail. A QR that is
+// present but invalid still fails the build, as do a bad number or a bad expiry.
 export function licencePending(unit) {
-  return unit.status !== 'draft' && (blank(unit.ad_license_expiry) || blank(unit.ad_license_qr));
+  return unit.status !== 'draft' && blank(unit.ad_license_expiry);
 }
 
 export function isPublic(unit, today = new Date()) {
@@ -210,7 +217,18 @@ export function validateUnits(data, { publicDir, mediaRoot, today = new Date() }
       else if (!LICENSE_NUMBER_RE.test(number)) errors.push(`${label}: bad ad_license_number`);
       if (!blank(unit.ad_license_expiry) && (typeof unit.ad_license_expiry !== 'string' || !isCalendarDate(unit.ad_license_expiry))) errors.push(`${label}: bad ad_license_expiry`);
       if (unit.ad_license_qr != null && typeof unit.ad_license_qr !== 'string') errors.push(`${label}: bad ad_license_qr`);
-      if (licencePending(unit)) warnings.push(`${label}: hidden until ad_license_expiry and ad_license_qr are filled`);
+      if (licencePending(unit)) warnings.push(`${label}: hidden until ad_license_expiry is filled`);
+    }
+
+    if (unit.ad_license_advertiser != null && unit.ad_license_advertiser !== '') {
+      if (typeof unit.ad_license_advertiser !== 'string' || !unit.ad_license_advertiser.trim()) errors.push(`${label}: bad ad_license_advertiser`);
+    }
+    if (unit.fal_license != null && unit.fal_license !== '') {
+      const fal = typeof unit.fal_license === 'string' ? unit.fal_license.trim() : '';
+      if (!LICENSE_NUMBER_RE.test(fal)) errors.push(`${label}: bad fal_license`);
+    }
+    if (unit.ad_license_verify_url != null && unit.ad_license_verify_url !== '') {
+      if (typeof unit.ad_license_verify_url !== 'string' || !isHttps(unit.ad_license_verify_url)) errors.push(`${label}: bad ad_license_verify_url`);
     }
 
     if (unit.ad_license_qr != null && unit.ad_license_qr !== '') {
@@ -263,7 +281,7 @@ function priceView(unit) {
 function cardTitle(unit) {
   if (typeof unit.title === 'string' && unit.title.trim()) return unit.title.trim();
   const type = typeof unit.type === 'string' ? unit.type.trim() : '';
-  if (type && typeof unit.area_m2 === 'number') return `${type} · ${formatPriceAmount(unit.area_m2)} م²`;
+  if (type && typeof unit.area_m2 === 'number') return `${type} · ${formatMeasure(unit.area_m2)} م²`;
   if (type) return type;
   return `وحدة ${unit.code}`;
 }
@@ -272,7 +290,7 @@ function specRows(unit) {
   // Missing specs are omitted, never shown as dashes or guessed.
   const rows = [];
   if (!blank(unit.type)) rows.push({ label: 'النوع', value: String(unit.type) });
-  if (unit.area_m2 != null) rows.push({ label: 'المساحة', value: formatPriceAmount(unit.area_m2), ltr: true, suffix: ' م²' });
+  if (unit.area_m2 != null) rows.push({ label: 'المساحة', value: formatMeasure(unit.area_m2), ltr: true, suffix: ' م²' });
   if (unit.rooms != null) rows.push({ label: 'الغرف', value: String(unit.rooms), ltr: true });
   if (unit.bathrooms != null) rows.push({ label: 'دورات المياه', value: String(unit.bathrooms), ltr: true });
   if (!blank(unit.floor)) rows.push({ label: 'الدور', value: String(unit.floor), ltr: typeof unit.floor === 'number' });
@@ -295,9 +313,20 @@ function publicUrl(unit, file) {
   return /^https:\/\//i.test(file) ? file : `/units/${unit.code}/${file}`;
 }
 
+function licenceParty(unit) {
+  const advertiser = typeof unit.ad_license_advertiser === 'string' ? unit.ad_license_advertiser.trim() : '';
+  const fal = typeof unit.fal_license === 'string' ? unit.fal_license.trim() : '';
+  return {
+    advertiser: advertiser || ADVERTISER_NAME,
+    fal: fal || FAL_LICENSE,
+    whatsapp: ADVERTISER_WHATSAPP,
+  };
+}
+
 function toSpecUnit(unit, today) {
   const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
   const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
+  const party = licenceParty(unit);
   return {
     ref: unit.code,
     status: unit.status,
@@ -326,7 +355,7 @@ function toSpecUnit(unit, today) {
     },
     photos: unit.media?.cover ? [unit.media.cover] : [],
     logo: unit.media?.logo === true,
-    ad_licence: { number, qr },
+    ad_licence: { number, qr, expiry: formatLicenceDate(unit.ad_license_expiry), ...party },
     detailHref: `/units/${unit.code}/`,
   };
 }
@@ -342,6 +371,7 @@ export function unitCardView(unit, whatsappUrl, today = new Date()) {
   const closed = unit.status === 'sold';
   const number = typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '';
   const qr = typeof unit.ad_license_qr === 'string' && unit.ad_license_qr ? publicUrl(unit, unit.ad_license_qr) : '';
+  const party = licenceParty(unit);
   const placeholder = unit._placeholder === true || unit.status === 'draft' || expired || licencePending(unit);
   return {
     code: unit.code,
@@ -358,7 +388,7 @@ export function unitCardView(unit, whatsappUrl, today = new Date()) {
     title: cardTitle(unit),
     specs: specRows(unit),
     price: priceView(unit),
-    license: number && qr ? { number, qrUrl: qr, alt: `رمز QR لترخيص الإعلان ${number}` } : null,
+    license: number ? { number, expiry: formatLicenceDate(unit.ad_license_expiry), qrUrl: qr, alt: qr ? `رمز QR لترخيص الإعلان ${number}` : '', ...party } : null,
   };
 }
 
@@ -366,7 +396,25 @@ function jsonLd(value) {
   return JSON.stringify(value, null, 2).replace(/</g, '\\u003c');
 }
 
-function pageShell({ site, office, legal, pageLinks, title, description, canonical, robots, ogImage, main, graph, whatsappHref, cardCss = false }) {
+const COMMERCIAL_REGISTRATION = '7053922824';
+
+function officeWithoutCommercialRegistration(office) {
+  if (!office || typeof office !== 'object' || !Array.isArray(office.identifier)) return office;
+  const identifier = office.identifier.filter((item) => !item || (item.name !== 'السجل التجاري' && String(item.value) !== COMMERCIAL_REGISTRATION));
+  if (identifier.length === office.identifier.length) return office;
+  const next = { ...office };
+  if (identifier.length) next.identifier = identifier;
+  else delete next.identifier;
+  return next;
+}
+
+function legalWithoutCommercialRegistration(legal) {
+  return String(legal ?? '').replace(/<span>السجل التجاري:[\s\S]*?<\/span>\s*/g, '');
+}
+
+function pageShell({ site, legal, pageLinks, title, description, canonical, robots, ogImage, main, graph, whatsappHref, cardCss = false }) {
+  legal = legalWithoutCommercialRegistration(legal);
+  graph = graph.map((node) => (node && node['@type'] === 'RealEstateAgent' ? officeWithoutCommercialRegistration(node) : node));
   const wa = whatsappHref || site.whatsapp.url;
   return `<!doctype html>
 <html lang="ar" dir="rtl">
@@ -492,11 +540,21 @@ ${flagHtml(units, today)}${list}
 
 function detailLicense(view) {
   if (!view.license) return view.placeholder ? '<p class="unit-license unit-license--missing">لا توجد رخصة إعلان</p>' : '';
+  const qr = view.license.qrUrl
+    ? `<img src="${esc(view.license.qrUrl)}" alt="${esc(view.license.alt)}" width="128" height="128" loading="lazy" decoding="async">`
+    : '';
+  const expiry = view.license.expiry ? `<p>ينتهي <span class="ltr">${esc(view.license.expiry)}</span></p>` : '';
+  const advertiser = view.license.advertiser || ADVERTISER_NAME;
+  const fal = view.license.fal || FAL_LICENSE;
+  const whatsapp = view.license.whatsapp || ADVERTISER_WHATSAPP;
   return `<div class="unit-license">
-          <img src="${esc(view.license.qrUrl)}" alt="${esc(view.license.alt)}" width="128" height="128" loading="lazy" decoding="async">
-          <div>
+          ${qr}<div>
             <p class="lbl">ترخيص الإعلان</p>
             <p class="ltr">${esc(view.license.number)}</p>
+            ${expiry}
+            <p>المعلن: ${esc(advertiser)}</p>
+            <p>رخصة فال <span class="ltr">${esc(fal)}</span></p>
+            <p>واتساب <span class="ltr">${esc(whatsapp)}</span></p>
           </div>
         </div>`;
 }
@@ -660,9 +718,9 @@ export function buildUnitPages({ publicDir, site, office, legal, pageLinks, unit
   return { visible, published: publishedUnits(units, today) };
 }
 
-// Home page section under the hero. Only units that pass the REGA check
-// (number + expiry + QR, not expired) are listed; with none, both the section
-// and the hero button render as empty strings, so nothing shows.
+// Home page section under the hero. Only units that pass the licence check
+// (number + unexpired expiry; QR optional) are listed; with none, both the
+// section and the hero button render as empty strings, so nothing shows.
 export function renderHomeUnits(units, { whatsapp, today = new Date() }) {
   const live = publishedUnits(units, today);
   if (!live.length) return { section: '', cta: '' };
