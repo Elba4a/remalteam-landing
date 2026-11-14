@@ -257,7 +257,7 @@ ${live.map((p) => `- [${p.label}](${url(p)}): ${p.description}\n`).join('')}
 - [الوحدات](${site.origin}/units/): ${INDEX_NOTE}
 ${unitsLive.map((u) => `- [${u.code}](${site.origin}/units/${u.code}/): ${u.seo.description}\n`).join('')}`);
 
-console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), ${builtUnits.published.length} published unit(s)${previewDrafts ? `, previewing ${builtUnits.visible.length}` : ''}, index.html blocks, 404.html, sitemap.xml (${live.length + 2 + unitsLive.length} urls), llms.txt`);
+console.log(`built ${pages.length} page(s) (${pages.length - live.length} draft), ${builtUnits.published.length} published unit(s)${previewDrafts ? `, previewing ${builtUnits.visible.length}` : ''}, units/index.json (${builtUnits.feed.units.length}), index.html blocks, 404.html, sitemap.xml (${live.length + 2 + unitsLive.length} urls), llms.txt`);
 
 // Retired /rent URLs are redirected in worker.js (run_worker_first skips public/_redirects).
 const redirectCheck = spawnSync(process.execPath, ['--test', join(root, 'scripts/rent-redirect.test.mjs')], { stdio: 'inherit' });

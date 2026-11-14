@@ -27,6 +27,8 @@ export { HIDDEN_PRICE, esc, licenceExpired, riyadhDate, waHref, waMessage };
 
 export const CODE_RE = /^[A-Z]{2,4}-\d{3,4}$/;
 export const STATUSES = ['draft', 'available', 'reserved', 'sold'];
+export const AVAILABILITIES = ['available', 'reserved', 'sold'];
+export const FEED_SCHEMA_VERSION = 1;
 export const LICENSE_NUMBER_RE = /^[0-9]{6,20}$/;
 export const PAYMENTS = ['cash', 'finance'];
 export const VIDEO_MAX_BYTES = 3 * 1024 * 1024;
@@ -67,6 +69,76 @@ export function isPublic(unit, today = new Date()) {
 
 export function publishedUnits(units, today = new Date()) {
   return units.filter((unit) => isPublic(unit, today));
+}
+
+function absoluteMediaUrl(origin, code, file) {
+  if (typeof file !== 'string' || file.trim() === '') return null;
+  if (/^https:\/\//i.test(file)) return file;
+  if (!LOCAL_FILE_RE.test(file)) return null;
+  return `${origin}/units/${code}/${file}`;
+}
+
+function feedText(value) {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return null;
+}
+
+function feedNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function feedFloor(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return feedText(value);
+}
+
+// Machine-readable list for remal-calc. Same isPublic guard as the HTML:
+// draft, licence-pending, and expired units are absent, and so is their media.
+// `availability` is included as data only; it does not change publishing.
+export function buildUnitsFeed(units, { origin, today = new Date() } = {}) {
+  if (typeof origin !== 'string' || !/^https:\/\//i.test(origin)) throw new Error('units feed: missing https origin');
+  const base = origin.replace(/\/$/, '');
+  return {
+    schema_version: FEED_SCHEMA_VERSION,
+    generated_at: today.toISOString(),
+    units: publishedUnits(units, today).map((unit) => {
+      const logo = unit.media?.logo === true;
+      const photos = logo
+        ? []
+        : (Array.isArray(unit.media?.photos) && unit.media.photos.length ? unit.media.photos : (unit.media?.cover ? [unit.media.cover] : []))
+          .map((photo) => absoluteMediaUrl(base, unit.code, photo))
+          .filter(Boolean);
+      const cover = logo ? `${base}${LOGO_URL}` : absoluteMediaUrl(base, unit.code, unit.media?.cover);
+      const price = unit.price && typeof unit.price === 'object' ? unit.price : {};
+      return {
+        code: unit.code,
+        type: feedText(unit.type),
+        title: cardTitle(unit),
+        city: feedText(unit.city),
+        neighbourhood: feedText(unit.neighbourhood),
+        area_m2: feedNumber(unit.area_m2),
+        price: {
+          hidden: price.hidden === true,
+          amount: feedNumber(price.amount),
+          currency: price.currency || 'SAR',
+        },
+        rooms: Number.isInteger(unit.rooms) ? unit.rooms : null,
+        bathrooms: Number.isInteger(unit.bathrooms) ? unit.bathrooms : null,
+        floor: feedFloor(unit.floor),
+        features: Array.isArray(unit.features) ? unit.features.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim()) : [],
+        payment: PAYMENTS.includes(unit.payment) ? unit.payment : null,
+        ad_license_number: typeof unit.ad_license_number === 'string' ? unit.ad_license_number.trim() : '',
+        ad_license_expiry: typeof unit.ad_license_expiry === 'string' ? unit.ad_license_expiry : '',
+        status: unit.status,
+        availability: AVAILABILITIES.includes(unit.availability) ? unit.availability : 'available',
+        needs_manager_confirmation: unit.needs_manager_confirmation === true,
+        cover,
+        photos,
+        page_url: `${base}/units/${unit.code}/`,
+        updated: unit.updated,
+      };
+    }),
+  };
 }
 
 function isHttps(value) {
@@ -147,6 +219,15 @@ export function validateUnits(data, { publicDir, mediaRoot, today = new Date() }
 
     if (unit.status == null || unit.status === '') errors.push(`${label}: missing status`);
     else if (!STATUSES.includes(unit.status)) errors.push(`${label}: bad status`);
+
+    // Optional. Omitted means available. Any other value fails the build.
+    // This does not change what isPublic publishes, including availability "sold".
+    if (Object.prototype.hasOwnProperty.call(unit, 'availability') && !AVAILABILITIES.includes(unit.availability)) {
+      errors.push(`${label}: bad availability`);
+    }
+    if (Object.prototype.hasOwnProperty.call(unit, 'needs_manager_confirmation') && typeof unit.needs_manager_confirmation !== 'boolean') {
+      errors.push(`${label}: needs_manager_confirmation must be true or false`);
+    }
 
     if (unit.price == null) errors.push(`${label}: missing price`);
     else if (typeof unit.price !== 'object' || Array.isArray(unit.price)) errors.push(`${label}: missing price`);
@@ -715,7 +796,9 @@ export function buildUnitPages({ publicDir, site, office, legal, pageLinks, unit
     mkdirSync(join(dir, unit.code), { recursive: true });
     writeFileSync(join(dir, unit.code, 'index.html'), renderDetail(unit, ctx));
   }
-  return { visible, published: publishedUnits(units, today) };
+  const feed = buildUnitsFeed(units, { origin: site.origin, today });
+  writeFileSync(join(dir, 'index.json'), `${JSON.stringify(feed, null, 2)}\n`);
+  return { visible, published: publishedUnits(units, today), feed };
 }
 
 // Home page section under the hero. Only units that pass the licence check

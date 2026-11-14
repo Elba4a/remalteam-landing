@@ -7,3 +7,7 @@
 
 /assets/vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+/units/index.json
+  Access-Control-Allow-Origin: https://calc.remalteam.com
+  Cache-Control: public, max-age=300
