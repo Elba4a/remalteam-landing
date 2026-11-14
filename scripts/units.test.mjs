@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,6 +10,7 @@ import {
   buildUnitPages,
   publishedUnits,
   readUnitsDocument,
+  renderHomeUnits,
   validateUnits,
   waHref,
   waMessage,
@@ -30,7 +31,7 @@ function fixture(units) {
   for (const unit of units) {
     const folder = join(publicDir, 'units', unit.code);
     mkdirSync(folder, { recursive: true });
-    for (const name of new Set([unit.media?.cover, unit.media?.poster, unit.ad_license_qr, ...(unit.media?.photos || [])].filter((name) => typeof name === 'string' && !name.includes('://') && !name.includes('..') && !name.includes('/')))) {
+    for (const name of new Set([unit.media?.cover, unit.media?.poster, unit.ad_license_qr, ...(unit.media?.photos || [])].filter((name) => typeof name === 'string' && name !== '' && !name.includes('://') && !name.includes('..') && !name.includes('/')))) {
       writeFileSync(join(folder, name), 'img');
     }
     if (typeof unit.media?.video === 'string' && unit.media.video.endsWith('.mp4') && !unit.media.video.includes('://') && !unit._bigVideo) {
@@ -63,13 +64,17 @@ function base(over = {}) {
   };
 }
 
-function errorsOf(units, publicDir) {
+function errorsOf(units, publicDir, extra = {}) {
   try {
-    validateUnits({ updated: '2026-10-24', units }, { publicDir });
+    validateUnits({ updated: '2026-10-24', units }, { publicDir, ...extra });
   } catch (error) {
     return error.errors.join('\n');
   }
   return '';
+}
+
+function visibleText(html) {
+  return html.replace(/<[^>]+>/g, '');
 }
 
 test('WhatsApp prefill is the CRM string, percent-encoded', () => {
@@ -207,11 +212,17 @@ test('published card escapes text and shows the SAR amount', () => {
 test('a non-draft unit missing a REGA licence fails, and an expired licence is withheld with a warning', () => {
   const today = new Date('2026-10-24T12:00:00+03:00');
   const { publicDir } = fixture([base()]);
-  for (const key of ['ad_license_number', 'ad_license_expiry', 'ad_license_qr']) {
-    const unit = base();
-    delete unit[key];
-    assert.match(errorsOf([unit], publicDir), new RegExp(key));
-  }
+  const noNumber = base();
+  delete noNumber.ad_license_number;
+  assert.match(errorsOf([noNumber], publicDir), /missing ad_license_number/);
+  // Empty expiry: licence pending, hidden, build does not fail.
+  const noExpiry = base({ ad_license_expiry: '' });
+  assert.equal(errorsOf([noExpiry], publicDir), '');
+  assert.deepEqual(publishedUnits([noExpiry], today), []);
+  // Empty QR with a valid unexpired expiry: published. A present QR is still checked elsewhere.
+  const noQr = base({ ad_license_qr: '' });
+  assert.equal(errorsOf([noQr], publicDir), '');
+  assert.deepEqual(publishedUnits([noQr], today).map((unit) => unit.code), ['RT-002']);
   const expired = base({ code: 'RT-009', ad_license_expiry: '2026-04-30' });
   const { publicDir: expiredDir } = fixture([expired]);
   const result = validateUnits({ updated: '2026-10-24', units: [expired] }, { publicDir: expiredDir, today });
@@ -251,7 +262,7 @@ test('listing_type and a price period are rejected, and every card says للبي
   assert.match(errorsOf([base({ listing_type: 'sale' })], publicDir), /listing_type is not used/);
   assert.match(errorsOf([base({ price: { hidden: false, amount: 850000, currency: 'SAR', period: 'yearly' } })], publicDir), /price\.period is not used/);
   assert.match(errorsOf([base({ status: 'leased' })], publicDir), /bad status/);
-  assert.match(errorsOf([base({ payment: 'lease' })], publicDir), /missing payment/);
+  assert.match(errorsOf([base({ payment: 'lease' })], publicDir), /bad payment/);
   const { units } = validateUnits({ updated: '2026-10-24', units: [base()] }, { publicDir });
   buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units });
   const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
@@ -260,39 +271,304 @@ test('listing_type and a price period are rejected, and every card says للبي
   assert.ok(detail.includes('class="unit-deal">للبيع'));
 });
 
-test('the checked-in sample stays a draft sale at the full riyal price', () => {
-  const doc = readUnitsDocument(root, join(root, 'public'));
-  const unit = doc.units[0];
-  assert.equal(unit.code, 'RT-001');
-  assert.equal(unit.status, 'draft');
-  assert.equal(unit._placeholder, true);
-  assert.equal(unit.listing_type, undefined);
-  assert.deepEqual(publishedUnits(doc.units), []);
-  for (const key of ['type', 'area_m2', 'rooms', 'bathrooms', 'floor', 'neighbourhood', 'city', 'payment']) {
-    assert.equal(unit[key], null);
+test('checked-in units 1-10 publish with expiry, photos, and no QR', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const doc = readUnitsDocument(root, join(root, 'public'), today);
+  const codes = doc.units.map((unit) => unit.code);
+  assert.deepEqual(codes, Array.from({ length: 10 }, (_, i) => `RT-${String(i + 1).padStart(3, '0')}`));
+  assert.deepEqual(publishedUnits(doc.units, today).map((unit) => unit.code), codes);
+  assert.deepEqual(doc.units.find((unit) => unit.code === 'RT-001').media.photos, ['photo-1.jpg', 'photo-2.jpg', 'photo-3.jpg', 'photo-4.jpg']);
+  assert.equal(existsSync(join(root, 'content/unit-media/RT-001/photo-5.jpg')), false);
+  assert.equal(existsSync(join(root, 'content/unit-media/RT-001/photo-6.jpg')), false);
+  for (const unit of doc.units) {
+    assert.equal(unit.status, 'available');
+    assert.match(unit.ad_license_number, /^72\d{8}$/);
+    assert.equal(unit.ad_license_expiry, '2027-04-15');
+    assert.equal(unit.ad_license_qr, '');
+    assert.match(unit.ad_license_verify_url, /^https:\/\//);
+    assert.equal(unit.media.logo, undefined);
+    assert.ok(Array.isArray(unit.media.photos) && unit.media.photos.length > 0);
+    assert.ok(unit.features.includes('المعاينة مجانية'));
+    assert.equal(unit.features.some((line) => line.startsWith('المعلن:')), false, unit.code);
+    assert.equal(unit.features.some((line) => line.startsWith('رقم ترخيص الإعلان')), false, unit.code);
+    assert.equal(unit.features.some((line) => /^واتساب/.test(line)), false, unit.code);
+    const text = JSON.stringify(unit);
+    assert.equal(text.includes('4 غرف نوم'), false, unit.code);
+    assert.equal(/تمويل|التمويل|بنك|البنوك|الراجحي|الأهلي|نسبة/.test(text), false, unit.code);
+    assert.equal(unit.payment, undefined);
+    if (unit.code <= 'RT-005') {
+      assert.equal(unit.ad_license_advertiser, 'مكتب الرمال تيم العقارية');
+      assert.equal(unit.fal_license, '1200048445');
+    } else {
+      assert.equal(unit.ad_license_advertiser, undefined);
+      assert.equal(unit.fal_license, undefined);
+    }
+    for (const name of unit.media.photos) {
+      assert.equal(existsSync(join(root, 'content/unit-media', unit.code, name)), true, `${unit.code}/${name}`);
+      assert.equal(existsSync(join(root, 'public/units', unit.code, name)), true, `${unit.code}/${name}`);
+    }
   }
-  assert.equal(unit.price.hidden, false);
-  assert.equal(unit.price.amount, 430000);
-  assert.equal(unit.price.currency, 'SAR');
-  assert.equal(unit.ad_license_number, undefined);
-  assert.equal(unit.ad_license_expiry, undefined);
-  assert.equal(unit.ad_license_qr, undefined);
+  const home = renderHomeUnits(doc.units, { whatsapp: site.whatsapp.url, today });
+  assert.ok(home.cta.includes('شوف الوحدات المتاحة') && home.cta.includes('href="#units"'));
+  for (const code of codes) assert.ok(home.section.includes(`data-ref="${code}"`), code);
+  assert.equal(home.section.includes('rt-card-logo'), false);
+  assert.equal(visibleText(home.section).includes('4 غرف نوم'), false);
+  assert.ok(home.section.includes('ينتهي'));
+  assert.ok(home.section.includes('15/04/2027'));
+  assert.ok(home.section.includes('المعلن: مكتب الرمال تيم العقارية'));
+  assert.ok(home.section.includes('1200048445'));
+  assert.ok(home.section.includes('0535330034'));
+  const html = readFileSync(join(root, 'public/index.html'), 'utf8');
+  const schema = html.slice(html.indexOf('<!-- build:schema -->'), html.indexOf('<!-- /build:schema -->'));
+  assert.ok(schema.includes('7053922824'));
+  assert.ok(schema.includes('السجل التجاري'));
+  assert.ok(html.includes('id="units"'));
+  assert.ok(html.includes('شوف الوحدات المتاحة'));
+  assert.ok(html.includes('data-ref="RT-001"'));
+  const detail = readFileSync(join(root, 'public/units/RT-001/index.html'), 'utf8');
+  assert.equal(detail.includes('7053922824'), false);
+  assert.equal(detail.includes('rega.gov.sa'), false);
+  assert.equal(detail.includes('photo-5.jpg'), false);
+  const areas = {
+    'RT-001': '204.83', 'RT-002': '337.2', 'RT-003': '202.04', 'RT-004': '160.01', 'RT-005': '375.82',
+    'RT-006': '189.61', 'RT-007': '319.46', 'RT-008': '254.82', 'RT-009': '164.74', 'RT-010': '274.72',
+  };
+  for (const [code, area] of Object.entries(areas)) {
+    const page = readFileSync(join(root, 'public/units', code, 'index.html'), 'utf8');
+    assert.ok(page.includes(`<span class="ltr">${area}</span> م²`), code);
+    assert.ok(html.includes(`<span class="rt-num">${area}</span> م²`), code);
+    assert.ok(page.includes('ينتهي'));
+    assert.ok(page.includes('15/04/2027'));
+    assert.ok(page.includes('0535330034'));
+  }
+});
 
-  const { publicDir } = fixture([unit]);
-  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: [unit], preview: true });
+test('filling expiry + QR publishes the unit on the home section with the hero button', () => {
+  const today = new Date('2026-11-04T12:00:00+03:00');
+  const doc = readUnitsDocument(root, join(root, 'public'));
+  const filled = doc.units.map((unit) => (unit.code === 'RT-008' || unit.code === 'RT-007'
+    ? { ...unit, ad_license_expiry: '2027-11-04', ad_license_qr: 'license-qr.png' }
+    : unit));
+  const { publicDir } = fixture(filled.filter((u) => u.ad_license_qr));
+  const { units, warnings } = validateUnits({ updated: '2026-11-04', units: filled.filter((u) => u.ad_license_qr) }, { publicDir, today });
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(publishedUnits(units, today).map((u) => u.code), ['RT-007', 'RT-008']);
+  const home = renderHomeUnits(filled, { whatsapp: site.whatsapp.url, today });
+  assert.ok(home.cta.includes('شوف الوحدات المتاحة') && home.cta.includes('href="#units"'));
+  assert.ok(home.section.includes('id="units"'));
+  assert.ok(home.section.includes('data-ref="RT-008"') && home.section.includes('data-ref="RT-007"'));
+  assert.ok(home.section.includes('data-ref="RT-001"'));
+  const withoutExpiry = renderHomeUnits(filled.map((unit) => (unit.code === 'RT-001' ? { ...unit, ad_license_expiry: '' } : unit)), { whatsapp: site.whatsapp.url, today });
+  assert.equal(withoutExpiry.section.includes('data-ref="RT-001"'), false);
+  assert.equal(home.section.includes('rt-card-logo'), false);
+  assert.ok(home.section.includes('/units/RT-007/photo-1.jpg'));
+  assert.ok(home.section.includes('/units/RT-008/photo-1.jpg'));
+  assert.ok(home.section.includes('loading="lazy"'));
+  assert.ok(home.section.includes(waHref(site.whatsapp.url, 'RT-008')));
+  assert.ok(home.section.includes('المعاينة مجانية'));
+  assert.equal(visibleText(home.section).includes('4 غرف نوم'), false);
+  assert.equal(home.section.includes('—'), false);
+});
+
+test('filled but invalid licence fields still fail the build', () => {
+  const { publicDir } = fixture([base()]);
+  assert.match(errorsOf([base({ ad_license_expiry: '04/11/2027' })], publicDir), /bad ad_license_expiry/);
+  assert.match(errorsOf([base({ ad_license_qr: 'missing-qr.png' })], publicDir), /ad_license_qr missing/);
+  assert.match(errorsOf([base({ ad_license_qr: 'qr.pdf' })], publicDir), /ad_license_qr/);
+  assert.match(errorsOf([base({ ad_license_qr: 'https://example.com/qr.pdf' })], publicDir), /ad_license_qr/);
+  assert.match(errorsOf([base({ ad_license_qr: 'https://example.com/qr' })], publicDir), /ad_license_qr/);
+  assert.equal(errorsOf([base({ ad_license_qr: 'https://example.com/license-qr.png' })], publicDir), '');
+  assert.match(errorsOf([base({ ad_license_number: '72-01' })], publicDir), /bad ad_license_number/);
+  assert.match(errorsOf([base({ ad_license_advertiser: 12 })], publicDir), /bad ad_license_advertiser/);
+  assert.match(errorsOf([base({ ad_license_advertiser: '   ' })], publicDir), /bad ad_license_advertiser/);
+  assert.match(errorsOf([base({ fal_license: '12-44' })], publicDir), /bad fal_license/);
+  assert.match(errorsOf([base({ fal_license: 1200048445 })], publicDir), /bad fal_license/);
+  assert.match(errorsOf([base({ ad_license_verify_url: 'http://example.com/a' })], publicDir), /bad ad_license_verify_url/);
+  assert.match(errorsOf([base({ ad_license_verify_url: 'not-a-url' })], publicDir), /bad ad_license_verify_url/);
+  assert.equal(errorsOf([base({ ad_license_advertiser: '', fal_license: '', ad_license_verify_url: '' })], publicDir), '');
+  assert.match(errorsOf([base({ area_m2: 'كبيرة' })], publicDir), /bad area_m2/);
+  assert.match(errorsOf([base({ media: { logo: true, cover: 'cover.jpg' } })], publicDir), /media.logo/);
+});
+
+test('impossible calendar dates fail for draft and available units, real dates do not', () => {
+  const { publicDir } = fixture([base()]);
+  for (const expiry of ['2027-02-29', '2027-02-30', '2027-02-31', '2027-04-31', '2027-06-31', '2027-09-31', '2027-11-31']) {
+    assert.match(errorsOf([base({ ad_license_expiry: expiry })], publicDir), /bad ad_license_expiry/, expiry);
+    assert.match(errorsOf([base({ status: 'draft', ad_license_expiry: expiry })], publicDir), /bad ad_license_expiry/, expiry);
+  }
+  for (const expiry of ['2027-02-28', '2027-11-30', '2024-02-29', '2028-02-29', '2000-02-29']) {
+    assert.equal(errorsOf([base({ ad_license_expiry: expiry })], publicDir), '', expiry);
+    assert.equal(errorsOf([base({ status: 'draft', ad_license_expiry: expiry })], publicDir), '', expiry);
+  }
+});
+
+test('unpublished media is kept out of public and removed when a unit drops out', () => {
+  const today = new Date('2026-11-05T12:00:00+03:00');
+  const dir = mkdtempSync(join(tmpdir(), 'units-media-'));
+  const publicDir = join(dir, 'public');
+  const mediaRoot = join(dir, 'content/unit-media');
+  const source = join(mediaRoot, 'RT-008');
+  mkdirSync(source, { recursive: true });
+  writeFileSync(join(source, 'cover.jpg'), 'photo');
+  writeFileSync(join(source, 'license-qr.png'), 'qr');
+  const stale = join(publicDir, 'units', 'RT-008');
+  mkdirSync(stale, { recursive: true });
+  writeFileSync(join(stale, 'cover.jpg'), 'stale');
+  writeFileSync(join(stale, 'index.html'), 'old');
+  const hidden = base({ code: 'RT-008', ad_license_expiry: '', ad_license_qr: '' });
+  const hiddenDoc = validateUnits({ updated: '2026-11-04', units: [hidden] }, { publicDir, mediaRoot, today });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: hiddenDoc.units, today, mediaRoot });
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008')), false);
+  assert.equal(readFileSync(join(source, 'cover.jpg'), 'utf8'), 'photo');
+
+  const live = base({ code: 'RT-008', ad_license_expiry: '2028-02-29', ad_license_qr: 'license-qr.png' });
+  const liveDoc = validateUnits({ updated: '2026-11-04', units: [live] }, { publicDir, mediaRoot, today });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: liveDoc.units, today, mediaRoot });
+  assert.equal(readFileSync(join(publicDir, 'units', 'RT-008', 'cover.jpg'), 'utf8'), 'photo');
+  assert.equal(readFileSync(join(publicDir, 'units', 'RT-008', 'license-qr.png'), 'utf8'), 'qr');
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008', 'index.html')), true);
+
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: hiddenDoc.units, today, mediaRoot });
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-008')), false);
+  assert.equal(readdirSync(join(publicDir, 'units')).includes('RT-008'), false);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('a unit advertiser and FAL override the office constants, and the verify URL is not rendered', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const unit = base({
+    code: 'RT-004',
+    ad_license_qr: '',
+    ad_license_advertiser: 'مكتب تجربة',
+    fal_license: '1200000001',
+    ad_license_verify_url: 'https://example.com/licence',
+  });
+  const { publicDir, dir } = fixture([unit]);
+  const { units, warnings } = validateUnits({ updated: '2026-11-14', units: [unit] }, { publicDir, today });
+  assert.deepEqual(warnings, []);
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units, today });
+  const detail = readFileSync(join(publicDir, 'units/RT-004/index.html'), 'utf8');
   const index = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
-  const article = index.slice(index.indexOf('<article'), index.indexOf('</article>'));
-  const detail = readFileSync(join(publicDir, 'units/RT-001/index.html'), 'utf8');
-  assert.ok(article.includes('430,000'));
-  assert.equal(article.includes('430 ألف'), false);
-  assert.equal(article.includes('430.000'), false);
-  assert.ok(article.includes('للبيع'));
-  assert.equal(article.includes('أبها'), false);
-  assert.equal(article.includes('rt-card-loc'), false);
-  assert.ok(article.includes('لا توجد رخصة إعلان'));
-  assert.equal(article.includes(waHref(site.whatsapp.url, 'RT-001')), false);
-  assert.ok(detail.includes('430,000'));
-  assert.ok(detail.includes('class="unit-deal">للبيع'));
-  assert.equal(detail.includes('>أبها<'), false);
-  assert.equal(detail.includes('<dt>الموقع</dt>'), false);
+  for (const html of [detail, index]) {
+    const listing = html.split('<section id="contact"')[0];
+    assert.ok(listing.includes('المعلن: مكتب تجربة'));
+    assert.ok(listing.includes('1200000001'));
+    assert.equal(listing.includes('المعلن: مكتب الرمال تيم العقارية'), false);
+    assert.equal(html.includes('example.com/licence'), false);
+    assert.ok(listing.includes('0535330034'));
+  }
+  const fallback = base({ code: 'RT-006', ad_license_qr: '' });
+  delete fallback.ad_license_advertiser;
+  delete fallback.fal_license;
+  const { publicDir: fallbackDir, dir: fallbackRoot } = fixture([fallback]);
+  const fallbackDoc = validateUnits({ updated: '2026-11-14', units: [fallback] }, { publicDir: fallbackDir, today });
+  buildUnitPages({ publicDir: fallbackDir, site, office, legal: '', pageLinks: '', units: fallbackDoc.units, today });
+  const fallbackHtml = readFileSync(join(fallbackDir, 'units/RT-006/index.html'), 'utf8');
+  assert.ok(fallbackHtml.includes('المعلن: مكتب الرمال تيم العقارية'));
+  assert.ok(fallbackHtml.includes('1200048445'));
+  rmSync(dir, { recursive: true, force: true });
+  rmSync(fallbackRoot, { recursive: true, force: true });
+});
+
+test('no QR plus a valid expiry publishes and renders the written licence', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const unit = base({
+    code: 'RT-006',
+    ad_license_number: '7201191996',
+    ad_license_expiry: '2027-04-15',
+    ad_license_qr: '',
+    neighbourhood: 'الغدير',
+    features: ['المعاينة مجانية'],
+  });
+  const { publicDir, dir } = fixture([unit]);
+  const { units, warnings } = validateUnits({ updated: '2026-11-14', units: [unit] }, { publicDir, today });
+  assert.deepEqual(warnings, []);
+  assert.deepEqual(publishedUnits(units, today).map((item) => item.code), ['RT-006']);
+  const officeWithCr = {
+    ...office,
+    identifier: [
+      { '@type': 'PropertyValue', name: 'السجل التجاري', value: '7053922824' },
+      { '@type': 'PropertyValue', name: 'رخصة فال', value: '1200048445' },
+    ],
+  };
+  const legal = '<div class="legal"><span>السجل التجاري: <b class="ltr">7053922824</b></span><span>رخصة فال: <b class="ltr">1200048445</b></span></div>';
+  buildUnitPages({ publicDir, site, office: officeWithCr, legal, pageLinks: '', units, today });
+  const index = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
+  const detail = readFileSync(join(publicDir, 'units/RT-006/index.html'), 'utf8');
+  for (const html of [index, detail]) {
+    const listing = html.split('<section id="contact"')[0];
+    assert.ok(listing.includes('7201191996'), 'licence number');
+    assert.ok(listing.includes('ينتهي'), 'expiry label');
+    assert.ok(listing.includes('15/04/2027'), 'expiry date');
+    assert.ok(listing.includes('المعلن: مكتب الرمال تيم العقارية'), 'advertiser');
+    assert.ok(listing.includes('1200048445'), 'FAL');
+    assert.ok(listing.includes('0535330034'), 'WhatsApp');
+    assert.ok(listing.includes('المعاينة مجانية'));
+    assert.equal(html.includes('7053922824'), false);
+    assert.equal(html.includes('السجل التجاري'), false);
+    assert.equal(html.includes('رمز QR'), false);
+    assert.equal(html.includes('license-qr'), false);
+    assert.equal(/<img[^>]+(?:qr|rega)/i.test(html), false);
+    assert.equal(/الراجحي|الأهلي|الإنماء|بنك البلاد|سامبا|الجزيرة|الفرنسي|نسبة/.test(html), false);
+    assert.equal(listing.includes('بنك'), false);
+    assert.equal(html.includes('rega.gov.sa'), false);
+  }
+  assert.equal(detail.includes('class="unit-license"'), true);
+  assert.equal(index.includes('class="rt-card-legal"'), true);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('an expired no-QR unit stays hidden and a hidden unit’s media is not synced', () => {
+  const today = new Date('2026-11-14T12:00:00+03:00');
+  const dir = mkdtempSync(join(tmpdir(), 'units-noqr-'));
+  const publicDir = join(dir, 'public');
+  const mediaRoot = join(dir, 'content/unit-media');
+  const liveSrc = join(mediaRoot, 'RT-006');
+  const hiddenSrc = join(mediaRoot, 'RT-001');
+  const expiredSrc = join(mediaRoot, 'RT-002');
+  mkdirSync(liveSrc, { recursive: true });
+  mkdirSync(hiddenSrc, { recursive: true });
+  mkdirSync(expiredSrc, { recursive: true });
+  writeFileSync(join(liveSrc, 'cover.jpg'), 'live-photo');
+  writeFileSync(join(liveSrc, 'license-qr.png'), 'qr-bytes');
+  writeFileSync(join(hiddenSrc, 'cover.jpg'), 'hidden-photo');
+  writeFileSync(join(expiredSrc, 'cover.jpg'), 'expired-photo');
+  const stale = join(publicDir, 'units', 'RT-001');
+  mkdirSync(stale, { recursive: true });
+  writeFileSync(join(stale, 'cover.jpg'), 'stale');
+  const live = base({
+    code: 'RT-006',
+    ad_license_number: '7201191996',
+    ad_license_expiry: '2027-04-15',
+    ad_license_qr: '',
+  });
+  const hidden = base({
+    code: 'RT-001',
+    ad_license_number: '7201191119',
+    ad_license_expiry: '',
+    ad_license_qr: '',
+  });
+  const expired = base({
+    code: 'RT-002',
+    ad_license_number: '7201191103',
+    ad_license_expiry: '2026-04-30',
+    ad_license_qr: '',
+  });
+  const result = validateUnits({ updated: '2026-11-14', units: [hidden, expired, live] }, { publicDir, mediaRoot, today });
+  assert.ok(result.warnings.some((warning) => warning.includes('RT-001') && warning.includes('hidden until ad_license_expiry is filled')));
+  assert.ok(result.warnings.some((warning) => warning.includes('RT-002') && warning.includes('expired')));
+  assert.deepEqual(publishedUnits(result.units, today).map((unit) => unit.code), ['RT-006']);
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units: result.units, today, mediaRoot });
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-001')), false);
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-002')), false);
+  assert.equal(readFileSync(join(hiddenSrc, 'cover.jpg'), 'utf8'), 'hidden-photo');
+  assert.equal(readFileSync(join(expiredSrc, 'cover.jpg'), 'utf8'), 'expired-photo');
+  assert.equal(readFileSync(join(publicDir, 'units', 'RT-006', 'cover.jpg'), 'utf8'), 'live-photo');
+  assert.equal(existsSync(join(publicDir, 'units', 'RT-006', 'license-qr.png')), false);
+  const html = readFileSync(join(publicDir, 'units/index.html'), 'utf8');
+  assert.equal(html.includes('RT-001'), false);
+  assert.equal(html.includes('RT-002'), false);
+  assert.ok(html.includes('RT-006'));
+  assert.equal(existsSync(join(publicDir, 'units/RT-002/index.html')), false);
+  rmSync(dir, { recursive: true, force: true });
 });

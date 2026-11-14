@@ -1,0 +1,42 @@
+{
+  "code": "RT-010",
+  "status": "available",
+  "updated": "2026-11-14",
+  "title": "شقة للبيع مع ملحق – خميس مشيط، حي الشفاء – 274.72 م²",
+  "type": "شقة مع ملحق",
+  "area_m2": 274.72,
+  "neighbourhood": "حي الشفاء",
+  "city": "خميس مشيط",
+  "price": {
+    "hidden": false,
+    "amount": 735000,
+    "currency": "SAR"
+  },
+  "features": [
+    "المكونات: مدخل سيارة وكراج، مصعد (تأسيس)، درج داخلي وخارجي، مجلس رجال، مقلط، مطبخ، صالة واسعة، غرفة غسيل، الملحق: غرفة ماستر، غرفتا نوم، غرفة خادمة، صالة، غرفة غسيل، سطح",
+    "المعاينة مجانية"
+  ],
+  "seo": {
+    "title": "شقة للبيع مع ملحق – خميس مشيط، حي الشفاء – 274.72 م² | الرمال تيم",
+    "description": "شقة بمدخل سيارة وكراج ودرج داخلي وخارجي في حي الشفاء بخميس مشيط، ومعها ملحق بغرفة ماستر وغرفتي نوم وسطح."
+  },
+  "ad_license_number": "7201207195",
+  "ad_license_expiry": "2027-04-15",
+  "ad_license_qr": "",
+  "ad_license_verify_url": "https://rega.gov.sa/rega-services/real-estate-inquiries/result-page/تفاصيل-الإعلان/?id=2bc90e50-4b41-49d1-bc20-ee74263b1b69&advertisementType=Office",
+  "media": {
+    "cover": "photo-1.jpg",
+    "photos": [
+      "photo-1.jpg",
+      "photo-2.jpg",
+      "photo-3.jpg",
+      "photo-4.jpg",
+      "photo-5.jpg",
+      "photo-6.jpg",
+      "photo-7.jpg",
+      "photo-8.jpg",
+      "photo-9.jpg",
+      "photo-10.jpg"
+    ]
+  }
+}

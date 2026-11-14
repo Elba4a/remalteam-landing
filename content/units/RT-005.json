@@ -1,0 +1,48 @@
+{
+  "code": "RT-005",
+  "status": "available",
+  "updated": "2026-11-14",
+  "title": "شقة للبيع – دور علوي مع ملحق – خميس مشيط، حي النور – 375.82 م²",
+  "type": "شقة – دور علوي مع ملحق",
+  "area_m2": 375.82,
+  "floor": "علوي + ملحق",
+  "neighbourhood": "النور",
+  "city": "خميس مشيط",
+  "price": {
+    "hidden": false,
+    "amount": 700000,
+    "currency": "SAR"
+  },
+  "features": [
+    "الدور الرئيسي: مدخل خاص، مجلس رجال، مجلس نساء، مقلط، صالة واسعة، مطبخ، مستودع، 3 غرف نوم، 4 دورات مياه",
+    "الملحق: مجلس رجال، صالة، مطبخ، غرفتا نوم",
+    "سطح خاص",
+    "واجهة شرقية (حسب الترخيص)",
+    "عقار جديد بضمان 25 سنة على السباكة والكهرباء وتأمين 10 سنوات (حسب الترخيص)",
+    "المعاينة مجانية"
+  ],
+  "seo": {
+    "title": "شقة للبيع – دور علوي مع ملحق – خميس مشيط، حي النور – 375.82 م² | الرمال تيم",
+    "description": "دور علوي جديد في حي النور بخميس مشيط، بمجلسين ومقلط و3 غرف نوم و4 دورات مياه، ومعه ملحق مستقل بغرفتي نوم وصالة ومطبخ، وسطح خاص."
+  },
+  "ad_license_number": "7201191999",
+  "ad_license_expiry": "2027-04-15",
+  "ad_license_qr": "",
+  "ad_license_advertiser": "مكتب الرمال تيم العقارية",
+  "fal_license": "1200048445",
+  "ad_license_verify_url": "https://rega.gov.sa/rega-services/real-estate-inquiries/result-page/تفاصيل-الإعلان/?id=391173cd-9f45-476f-9d59-50f0335513ff&advertisementType=Office",
+  "media": {
+    "cover": "photo-1.jpg",
+    "photos": [
+      "photo-1.jpg",
+      "photo-2.jpg",
+      "photo-3.jpg",
+      "photo-4.jpg",
+      "photo-5.jpg",
+      "photo-6.jpg",
+      "photo-7.jpg",
+      "photo-8.jpg",
+      "photo-9.jpg"
+    ]
+  }
+}
