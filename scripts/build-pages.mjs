@@ -43,6 +43,13 @@ const unitsDoc = readUnitsDocument(root, pub);
 for (const warning of unitsDoc.warnings) console.warn(`units: ${warning}`);
 const unitsLive = publishedUnits(unitsDoc.units);
 const previewDrafts = process.argv.includes('--preview-drafts');
+const CITY_UNIT_SLUGS = new Set(['abha', 'khamis-mushait']);
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const HOME_FAQ = [
+  { q: 'هل حسبة التمويل ومقارنة البنوك مجانية؟', a: 'نعم. حسبة التمويل ومقارنة البنوك مجاناً لأي شخص يسأل.' },
+  { q: 'هل المعاينة مجانية؟', a: 'نعم. المعاينة مجانية.' },
+  { q: 'كيف أتواصل معكم؟', a: `عبر واتساب: ${site.whatsapp.url}`, href: site.whatsapp.url },
+];
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]);
 const url = (p) => `${site.origin}/${p ? p.slug + '/' : ''}`;
@@ -92,6 +99,80 @@ const legal = `<div class="legal">
         </div>`;
 
 const ICON_CHAT = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>';
+
+function latestDate(dates) {
+  let best = '';
+  for (const date of dates) {
+    if (typeof date === 'string' && ISO_DATE.test(date) && date > best) best = date;
+  }
+  if (!best) throw new Error('sitemap: missing lastmod');
+  return best;
+}
+
+function unitsInCity(city) {
+  return unitsLive.filter((unit) => (typeof unit.city === 'string' ? unit.city.trim() : '') === city);
+}
+
+function cityUnitsSection(p) {
+  if (!CITY_UNIT_SLUGS.has(p.slug)) return '';
+  const matches = unitsInCity(p.label);
+  const sand = (p.sections || []).length % 2 === 1;
+  const items = matches.length
+    ? `<ul class="city-units">${matches.map((unit) => {
+      const label = typeof unit.title === 'string' && unit.title.trim() ? unit.title.trim() : unit.code;
+      return `<li><a href="/units/${unit.code}/">${esc(label)}</a></li>`;
+    }).join('')}</ul>`
+    : '<p><a href="/units/">كل الوحدات</a></p>';
+  return `  <section${sand ? ' class="sand"' : ''} aria-labelledby="city-units-title">
+    <div class="wrap prose">
+      <div class="sec-head"><h2 id="city-units-title">${esc(`وحدات متاحة في ${p.label}`)}</h2></div>
+      ${items}
+    </div>
+  </section>
+`;
+}
+
+function faqAnswerHtml(item) {
+  if (!item.href) return esc(item.a);
+  const url = esc(item.href);
+  const text = esc(item.a);
+  return text.includes(url) ? text.replace(url, `<a class="ltr" href="${url}">${url}</a>`) : text;
+}
+
+function homeFaqSection() {
+  const items = HOME_FAQ.map((item) => `      <details><summary>${esc(item.q)}</summary><p>${faqAnswerHtml(item)}</p></details>`).join('\n');
+  return `  <section id="faq" class="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="faq-title">أسئلة شائعة</h2><p class="en">FAQ</p></div>
+${items}
+    </div>
+  </section>`;
+}
+
+function homeFaqSchema() {
+  return {
+    '@type': 'FAQPage',
+    mainEntity: HOME_FAQ.map((item) => ({
+      '@type': 'Question',
+      name: item.q,
+      acceptedAnswer: { '@type': 'Answer', text: item.a },
+    })),
+  };
+}
+
+function homeItemList() {
+  if (!unitsLive.length) return null;
+  return {
+    '@type': 'ItemList',
+    name: 'وحدات متاحة للبيع الآن',
+    itemListElement: unitsLive.map((unit, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: typeof unit.title === 'string' && unit.title.trim() ? unit.title.trim() : unit.code,
+      url: `${site.origin}/units/${unit.code}/`,
+    })),
+  };
+}
 
 const page = (p) => {
   const faq = p.faq?.length ? p.faq : null;
@@ -155,7 +236,7 @@ ${(p.sections || []).map((s, i) => `  <section class="${i % 2 ? 'sand' : ''}">
       ${s.html}
     </div>
   </section>`).join('\n')}
-${faq ? `  <section class="faq" aria-labelledby="faq-title">
+${cityUnitsSection(p)}${faq ? `  <section class="faq" aria-labelledby="faq-title">
     <div class="wrap prose">
       <div class="sec-head"><h2 id="faq-title">أسئلة شائعة</h2><p class="en">FAQ</p></div>
 ${faq.map((f) => `      <details><summary>${esc(f.q)}</summary><p>${esc(f.a)}</p></details>`).join('\n')}
@@ -204,8 +285,16 @@ const builtUnits = buildUnitPages({
 const homeUnits = renderHomeUnits(unitsDoc.units, { whatsapp: site.whatsapp.url });
 
 // Home page: hand-written, except the blocks between <!-- build:NAME --> and <!-- /build:NAME -->.
+const homeGraph = [
+  { ...office, url: url() },
+  { '@type': 'WebSite', '@id': `${site.origin}/#site`, url: url(), name: site.name.ar, inLanguage: 'ar', publisher: { '@id': office['@id'] } },
+];
+const itemList = homeItemList();
+if (itemList) homeGraph.push(itemList);
+homeGraph.push(homeFaqSchema());
 const blocks = {
-  schema: schema([{ ...office, url: url() }, { '@type': 'WebSite', '@id': `${site.origin}/#site`, url: url(), name: site.name.ar, inLanguage: 'ar', publisher: { '@id': office['@id'] } }]),
+  schema: schema(homeGraph),
+  faq: homeFaqSection(),
   'home-links': pageLinks('page-links reveal'),
   'foot-links': pageLinks('page-links'),
   legal,
@@ -227,12 +316,31 @@ writeFileSync(join(pub, '404.html'), `<!doctype html><html lang="ar" dir="rtl"><
 <div><img src="/assets/mark-gold.svg" alt="" width="72" style="margin:0 auto 16px"><h1 style="font-size:28px;margin:0 0 8px">الصفحة غير موجودة</h1><p style="color:#B9B2A6;margin:0 0 24px">Page not found</p><a href="/" style="color:#C8A46B">العودة للرئيسية</a><p style="color:#B9B2A6;font-size:13px;margin-top:32px">السجل التجاري ${site.commercial_registration} · رخصة فال ${site.fal_license} · واتساب <a href="${site.whatsapp.url}" style="color:#B9B2A6" dir="ltr">${site.whatsapp.number}</a></p></div></body></html>
 `);
 
-writeFileSync(join(pub, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+// One urlset at public/sitemap.xml (https://remalteam.com/sitemap.xml). Not a sitemap index.
+// Published units are appended here, so a new public unit appears on the next build.
+function pageLastmod(p) {
+  const dates = [p.updated];
+  if (CITY_UNIT_SLUGS.has(p.slug)) dates.push(...unitsInCity(p.label).map((unit) => unit.updated));
+  return latestDate(dates);
+}
+const homeLastmod = latestDate([site.home_updated, ...unitsLive.map((unit) => unit.updated)]);
+const unitsLastmod = latestDate([unitsDoc.updated, ...unitsLive.map((unit) => unit.updated)]);
+const sitemapUrls = [
+  `  <url><loc>${url()}</loc><lastmod>${homeLastmod}</lastmod></url>`,
+  ...live.map((p) => `  <url><loc>${url(p)}</loc><lastmod>${pageLastmod(p)}</lastmod></url>`),
+  `  <url><loc>${site.origin}/units/</loc><lastmod>${unitsLastmod}</lastmod></url>`,
+  ...unitsLive.map((unit) => `  <url><loc>${site.origin}/units/${unit.code}/</loc><lastmod>${unit.updated}</lastmod></url>`),
+];
+const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>${url()}</loc><lastmod>${site.home_updated}</lastmod></url>
-${live.map((p) => `  <url><loc>${url(p)}</loc><lastmod>${p.updated}</lastmod></url>\n`).join('')}  <url><loc>${site.origin}/units/</loc><lastmod>${unitsDoc.updated}</lastmod></url>
-${unitsLive.map((u) => `  <url><loc>${site.origin}/units/${u.code}/</loc><lastmod>${u.updated}</lastmod></url>\n`).join('')}</urlset>
-`);
+${sitemapUrls.join('\n')}
+</urlset>
+`;
+for (const unit of unitsLive) {
+  if (!sitemap.includes(`<loc>${site.origin}/units/${unit.code}/</loc>`)) throw new Error(`sitemap missing published unit ${unit.code}`);
+}
+if ((sitemap.match(/<loc>/g) || []).length !== live.length + 2 + unitsLive.length) throw new Error('sitemap URL count drifted');
+writeFileSync(join(pub, 'sitemap.xml'), sitemap);
 
 const INDEX_NOTE = 'الوحدات المنشورة لدى المكتب بعد اعتماد المواصفات والسعر.';
 writeFileSync(join(pub, 'llms.txt'), `# ${site.name.ar} (${site.name.en})

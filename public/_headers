@@ -11,3 +11,6 @@
 /units/index.json
   Access-Control-Allow-Origin: https://calc.remalteam.com
   Cache-Control: public, max-age=300
+
+/bef2f3062074c9ff62a6e9800fdf317f.txt
+  Content-Type: text/plain; charset=utf-8

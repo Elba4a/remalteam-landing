@@ -731,3 +731,57 @@ test('the checked-in feed is exactly the published units, and only RT-004 needs 
     assert.ok(String(unit.cover).startsWith('https://'));
   }
 });
+
+function listingNode(html) {
+  const match = html.match(/<script type="application\/ld\+json">\n([\s\S]*?)\n<\/script>/);
+  assert.ok(match, 'json-ld');
+  const data = JSON.parse(match[1]);
+  const listing = data['@graph'].find((node) => node['@type'] === 'RealEstateListing');
+  assert.ok(listing);
+  assert.ok(data['@graph'].some((node) => node['@type'] === 'BreadcrumbList'));
+  return listing;
+}
+
+test('RealEstateListing JSON-LD keeps confirmed facts and omits empty counts', () => {
+  const full = base({ media: { cover: 'cover.jpg', photos: ['cover.jpg', 'inside.jpg'] } });
+  const bare = base({ code: 'RT-007', type: 'فيلا', city: ' ', neighbourhood: null, updated: '2026-11-14' });
+  delete bare.rooms;
+  delete bare.bathrooms;
+  const { publicDir, dir } = fixture([full, bare]);
+  const { units } = validateUnits({ updated: '2026-11-14', units: [full, bare] }, { publicDir });
+  buildUnitPages({ publicDir, site, office, legal: '', pageLinks: '', units, today: new Date('2026-11-14T12:00:00+03:00') });
+  const rich = listingNode(readFileSync(join(publicDir, 'units/RT-002/index.html'), 'utf8'));
+  assert.equal(rich.additionalType, 'https://schema.org/Apartment');
+  assert.equal(rich.address.addressLocality, 'أبها');
+  assert.equal(rich.address.streetAddress, 'المحالة');
+  assert.equal(rich.address.addressRegion, 'عسير');
+  assert.equal(rich.address.addressCountry, 'SA');
+  assert.equal(rich.numberOfRooms, 4);
+  assert.equal(rich.numberOfBedrooms, 4);
+  assert.equal(rich.numberOfBathroomsTotal, 3);
+  assert.deepEqual(rich.image, [
+    'https://remalteam.com/units/RT-002/cover.jpg',
+    'https://remalteam.com/units/RT-002/inside.jpg',
+  ]);
+  assert.equal(rich.validThrough, '2027-06-01');
+  assert.equal(rich.datePosted, '2026-10-24');
+  assert.equal(rich.offers.price, 850000);
+  assert.equal(rich.offers.priceCurrency, 'SAR');
+  assert.equal(rich.offers.priceValidUntil, '2027-06-01');
+  assert.equal(rich.offers.validThrough, '2027-06-01');
+  assert.equal(rich.floorSize.value, 140);
+  assert.equal(rich.identifier.value, '7200000001');
+  const visible = readFileSync(join(publicDir, 'units/RT-002/index.html'), 'utf8').replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/, '');
+  assert.equal(visible.includes('numberOfRooms'), false);
+
+  const villa = listingNode(readFileSync(join(publicDir, 'units/RT-007/index.html'), 'utf8'));
+  assert.equal(villa.additionalType, 'https://schema.org/SingleFamilyResidence');
+  assert.equal(Object.hasOwn(villa, 'numberOfRooms'), false);
+  assert.equal(Object.hasOwn(villa, 'numberOfBedrooms'), false);
+  assert.equal(Object.hasOwn(villa, 'numberOfBathroomsTotal'), false);
+  assert.equal(Object.hasOwn(villa.address, 'addressLocality'), false);
+  assert.equal(Object.hasOwn(villa.address, 'streetAddress'), false);
+  assert.equal(villa.address.addressRegion, 'عسير');
+  assert.equal(villa.address.addressCountry, 'SA');
+  rmSync(dir, { recursive: true, force: true });
+});

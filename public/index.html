@@ -115,6 +115,101 @@
       "publisher": {
         "@id": "https://remalteam.com/#office"
       }
+    },
+    {
+      "@type": "ItemList",
+      "name": "وحدات متاحة للبيع الآن",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "شقة للبيع – دور أرضي – خميس مشيط، حي شمال التضامن – 204.83 م²",
+          "url": "https://remalteam.com/units/RT-001/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "شقة للبيع – دور علوي مع ملحق – خميس مشيط، حي التضامن – 337.2 م²",
+          "url": "https://remalteam.com/units/RT-002/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "شقة للبيع – دور أرضي – أبها، حي الزهور – 202.04 م²",
+          "url": "https://remalteam.com/units/RT-003/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "شقة للبيع – دور أرضي – أبها، حي الزهور – 160.01 م²",
+          "url": "https://remalteam.com/units/RT-004/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "name": "شقة للبيع – دور علوي مع ملحق – خميس مشيط، حي النور – 375.82 م²",
+          "url": "https://remalteam.com/units/RT-005/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 6,
+          "name": "شقة للبيع – دور أول – أبها، حي الغدير – 189.61 م²",
+          "url": "https://remalteam.com/units/RT-006/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 7,
+          "name": "فيلا للبيع – أبها، حي الغدير – 319.46 م²",
+          "url": "https://remalteam.com/units/RT-007/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 8,
+          "name": "شقة للبيع – دور أرضي مع ملحق – خميس مشيط، حي غرناطة – 254.82 م²",
+          "url": "https://remalteam.com/units/RT-008/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 9,
+          "name": "شقة للبيع – دور أول علوي – أبها، حي الغدير – 164.74 م²",
+          "url": "https://remalteam.com/units/RT-009/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 10,
+          "name": "شقة للبيع مع ملحق – خميس مشيط، حي الشفاء – 274.72 م²",
+          "url": "https://remalteam.com/units/RT-010/"
+        }
+      ]
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "هل حسبة التمويل ومقارنة البنوك مجانية؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "نعم. حسبة التمويل ومقارنة البنوك مجاناً لأي شخص يسأل."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "هل المعاينة مجانية؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "نعم. المعاينة مجانية."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "كيف أتواصل معكم؟",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "عبر واتساب: https://wa.me/966535330034"
+          }
+        }
+      ]
     }
   ]
 }
@@ -300,6 +395,9 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
   .scroll-cue span { animation: none; }
   .card, .card:hover { transition: none; transform: none; }
 }
+.faq details { border-bottom: 1px solid var(--line); padding: 16px 0; }
+.faq summary { cursor: pointer; font-weight: 600; color: var(--ink); }
+.faq details p { margin: 8px 0 0; }
 </style>
 <!-- CSP: _headers allows this exact script by its sha256; edit both together. -->
 <script>document.documentElement.classList.add('js');</script>
@@ -607,6 +705,17 @@ h3 { font: 600 20px/30px var(--f-display); margin: 0 0 6px; }
       </figure>
     </div>
   </section>
+
+  <!-- build:faq -->
+  <section id="faq" class="faq" aria-labelledby="faq-title">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="faq-title">أسئلة شائعة</h2><p class="en">FAQ</p></div>
+      <details><summary>هل حسبة التمويل ومقارنة البنوك مجانية؟</summary><p>نعم. حسبة التمويل ومقارنة البنوك مجاناً لأي شخص يسأل.</p></details>
+      <details><summary>هل المعاينة مجانية؟</summary><p>نعم. المعاينة مجانية.</p></details>
+      <details><summary>كيف أتواصل معكم؟</summary><p>عبر واتساب: <a class="ltr" href="https://wa.me/966535330034">https://wa.me/966535330034</a></p></details>
+    </div>
+  </section>
+<!-- /build:faq -->
 
   <section id="contact" class="contact night" aria-labelledby="contact-title">
     <div class="wrap">
