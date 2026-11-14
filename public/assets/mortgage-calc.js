@@ -2,7 +2,7 @@
 (() => {
   const form = document.getElementById('calc');
   const wa = document.getElementById('calc-wa');
-  const officeWa = document.querySelector('.site-head .btn').href; // same prefilled link as the page header
+  const waBase = document.querySelector('.site-head .btn').href.split('?')[0]; // office number comes from the built header
   const fmt = (n) => Math.round(n).toLocaleString('en-US');
   // Clamped to the input's own min/max (the form is novalidate, so the browser won't).
   const num = (name) => {
@@ -18,7 +18,8 @@
     const amount = payment > 0 && n > 0 ? (r ? payment * (1 - (1 + r) ** -n) / r : payment * n) : 0;
     form.elements.payment.value = payment > 0 ? `${fmt(payment)} ريال` : debts > 0 ? 'الالتزامات تتجاوز النسبة' : '—';
     form.elements.amount.value = amount > 0 ? `${fmt(amount)} ريال` : '—';
-    wa.href = officeWa;
+    wa.href = `${waBase}?text=` + encodeURIComponent(
+      `السلام عليكم، جيتكم من الموقع\nالراتب: ${fmt(salary)}\nجهة العمل: \nالالتزامات: ${fmt(debts)}\nالمدة: ${years} سنة\nالنسبة: ${rate}٪\nالقسط التقريبي: ${payment > 0 ? fmt(payment) : 0}\nالتمويل التقريبي: ${fmt(amount)}\nأبغى أفضل حسبة مع مقارنة البنوك.`);
   };
   form.addEventListener('input', update);
   form.addEventListener('submit', (e) => e.preventDefault());

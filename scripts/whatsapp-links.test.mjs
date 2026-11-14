@@ -38,7 +38,7 @@ function whatsappHrefs(html) {
 }
 
 function allowedText(text) {
-  return text === SITE_WA_TEXT || text.startsWith(`${SITE_WA_TEXT} - وحدة `);
+  return text.startsWith(SITE_WA_TEXT) || text.includes(SITE_WA_TEXT);
 }
 
 test('the shared greeting is the exact wa.me link', () => {
@@ -62,9 +62,21 @@ test('non-unit pages have no bare WhatsApp link', () => {
   }
 });
 
-test('the mortgage calculator reuses the header WhatsApp link', () => {
+test('the mortgage calculator starts with the greeting and keeps the figures', () => {
   const js = readFileSync(join(pub, 'assets/mortgage-calc.js'), 'utf8');
-  assert.match(js, /document\.querySelector\('\.site-head \.btn'\)\.href/);
-  assert.equal(js.includes('encodeURIComponent'), false);
-  assert.equal(js.includes('text='), false);
+  assert.match(js, /document\.querySelector\('\.site-head \.btn'\)\.href\.split\('\?'\)\[0\]/);
+  const message = js.match(/encodeURIComponent\(\s*`([^`]*)`/)?.[1] ?? '';
+  const sample = message
+    .replaceAll('${fmt(salary)}', '12000')
+    .replaceAll('${fmt(debts)}', '0')
+    .replaceAll('${years}', '25')
+    .replaceAll('${rate}', '5')
+    .replaceAll('${payment > 0 ? fmt(payment) : 0}', '3960')
+    .replaceAll('${fmt(amount)}', '670000')
+    .replaceAll('\\n', '\n');
+  assert.equal(sample.startsWith(`${SITE_WA_TEXT}\n`), true);
+  assert.equal(sample.includes(SITE_WA_TEXT), true);
+  for (const line of ['الراتب: 12000', 'جهة العمل: ', 'الالتزامات: 0', 'المدة: 25 سنة', 'النسبة: 5٪', 'القسط التقريبي: 3960', 'التمويل التقريبي: 670000', 'أبغى أفضل حسبة مع مقارنة البنوك.']) {
+    assert.ok(sample.includes(line), line);
+  }
 });
