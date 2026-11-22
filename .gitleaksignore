@@ -1,0 +1,2 @@
+# IndexNow key: public by design (the protocol serves it at /<key>.txt, see public/). Not a secret.
+650e558388ad395a1dec61c3f9d8a8ceb7a35a5b:scripts/indexnow.test.mjs:generic-api-key:9
